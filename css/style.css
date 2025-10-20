@@ -1,0 +1,22 @@
+/* Reset default margins and padding */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Full viewport body */
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: #000000;
+}
+
+/* Full viewport canvas */
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: #1a1a2e;
+}
