@@ -27,7 +27,41 @@ export interface GameState {
 }
 
 /**
- * Input state tracking for keyboard and mouse
+ * Accelerometer data from device motion sensors
+ */
+export interface AccelerometerData {
+  /** Acceleration along X-axis (m/s²) */
+  x: number;
+  /** Acceleration along Y-axis (m/s²) */
+  y: number;
+  /** Acceleration along Z-axis (m/s²) */
+  z: number;
+}
+
+/**
+ * Device orientation data (tilt angles)
+ */
+export interface OrientationData {
+  /** Rotation around Z-axis (0-360°) */
+  alpha: number | null;
+  /** Front-to-back tilt (-180 to 180°) */
+  beta: number | null;
+  /** Left-to-right tilt (-90 to 90°) */
+  gamma: number | null;
+}
+
+/**
+ * Touch input data
+ */
+export interface TouchData {
+  /** Active touch points */
+  touches: Map<number, { x: number; y: number }>;
+  /** Whether any touch is active */
+  isActive: boolean;
+}
+
+/**
+ * Input state tracking for keyboard, mouse, accelerometer, and touch
  */
 export interface InputState {
   /** Map of key codes to pressed state */
@@ -41,6 +75,16 @@ export interface InputState {
     /** Map of mouse button indices to pressed state */
     buttons: Map<number, boolean>;
   };
+  /** Accelerometer data (null if not available) */
+  accelerometer: AccelerometerData | null;
+  /** Device orientation data (null if not available) */
+  orientation: OrientationData | null;
+  /** Touch input data */
+  touch: TouchData;
+  /** Whether motion sensors are available */
+  hasMotionSensors: boolean;
+  /** Whether motion permission has been granted (iOS) */
+  motionPermissionGranted: boolean;
 }
 
 /**

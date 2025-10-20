@@ -25,6 +25,10 @@ export class Game {
   private lastFpsUpdate: number;
   private currentFps: number;
 
+  // Mobile controls
+  private useAccelerometer: boolean;
+  private showPermissionButton: boolean;
+
   constructor(canvasId: string) {
     // Get canvas element
     const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
@@ -47,13 +51,17 @@ export class Game {
     // Initialize test game state
     this.playerPosition = { x: 0, y: 0 };
     this.playerVelocity = { x: 0, y: 0 };
-    this.playerSpeed = 1; // pixels per second
+    this.playerSpeed = 300; // pixels per second (increased for better mobile feel)
     this.playerRadius = 20;
 
     // FPS tracking
     this.frameCount = 0;
     this.lastFpsUpdate = performance.now();
     this.currentFps = 0;
+
+    // Mobile controls
+    this.useAccelerometer = false;
+    this.showPermissionButton = false;
 
     this.initialize();
   }
@@ -68,6 +76,39 @@ export class Game {
       x: context.width / 2,
       y: context.height / 2
     };
+
+    // Check if motion sensors are available and request permission if needed
+    if (this.inputManager.hasMotionSensors()) {
+      this.showPermissionButton = !this.inputManager.hasMotionPermission();
+      
+      // Auto-enable accelerometer on Android (no permission needed)
+      if (this.inputManager.hasMotionPermission()) {
+        this.useAccelerometer = true;
+      }
+    }
+  }
+
+  /**
+   * Request motion sensor permission (for iOS)
+   */
+  async requestMotionPermission(): Promise<void> {
+    const granted = await this.inputManager.requestMotionPermission();
+    if (granted) {
+      this.useAccelerometer = true;
+      this.showPermissionButton = false;
+      console.log('Motion sensors enabled');
+    } else {
+      console.log('Motion permission denied');
+    }
+  }
+
+  /**
+   * Toggle accelerometer controls on/off
+   */
+  toggleAccelerometer(): void {
+    if (this.inputManager.hasMotionSensors() && this.inputManager.hasMotionPermission()) {
+      this.useAccelerometer = !this.useAccelerometer;
+    }
   }
 
   /**
@@ -111,23 +152,31 @@ export class Game {
     // Handle input for player movement
     this.playerVelocity = { x: 0, y: 0 };
 
-    // WASD or Arrow keys for movement
-    if (this.inputManager.isKeyPressed('w') || this.inputManager.isKeyPressed('ArrowUp')) {
-      this.playerVelocity.y -= 1;
-    }
-    if (this.inputManager.isKeyPressed('s') || this.inputManager.isKeyPressed('ArrowDown')) {
-      this.playerVelocity.y += 1;
-    }
-    if (this.inputManager.isKeyPressed('a') || this.inputManager.isKeyPressed('ArrowLeft')) {
-      this.playerVelocity.x -= 1;
-    }
-    if (this.inputManager.isKeyPressed('d') || this.inputManager.isKeyPressed('ArrowRight')) {
-      this.playerVelocity.x += 1;
-    }
+    // Use accelerometer if enabled, otherwise use keyboard
+    if (this.useAccelerometer && this.inputManager.hasMotionPermission()) {
+      // Get tilt vector from accelerometer
+      const tilt = this.inputManager.getTiltVector();
+      this.playerVelocity.x = tilt.x;
+      this.playerVelocity.y = tilt.y;
+    } else {
+      // WASD or Arrow keys for movement
+      if (this.inputManager.isKeyPressed('w') || this.inputManager.isKeyPressed('ArrowUp')) {
+        this.playerVelocity.y -= 1;
+      }
+      if (this.inputManager.isKeyPressed('s') || this.inputManager.isKeyPressed('ArrowDown')) {
+        this.playerVelocity.y += 1;
+      }
+      if (this.inputManager.isKeyPressed('a') || this.inputManager.isKeyPressed('ArrowLeft')) {
+        this.playerVelocity.x -= 1;
+      }
+      if (this.inputManager.isKeyPressed('d') || this.inputManager.isKeyPressed('ArrowRight')) {
+        this.playerVelocity.x += 1;
+      }
 
-    // Normalize velocity for consistent diagonal movement
-    if (this.playerVelocity.x !== 0 || this.playerVelocity.y !== 0) {
-      this.playerVelocity = Vector2DUtils.normalize(this.playerVelocity);
+      // Normalize velocity for consistent diagonal movement
+      if (this.playerVelocity.x !== 0 || this.playerVelocity.y !== 0) {
+        this.playerVelocity = Vector2DUtils.normalize(this.playerVelocity);
+      }
     }
 
     // Apply velocity to position (frame-rate independent)
@@ -146,6 +195,13 @@ export class Game {
       } else {
         this.pause();
       }
+      // Small delay to prevent rapid toggling
+      setTimeout(() => { }, 200);
+    }
+
+    // Toggle accelerometer with T key
+    if (this.inputManager.isKeyPressed('t')) {
+      this.toggleAccelerometer();
       // Small delay to prevent rapid toggling
       setTimeout(() => { }, 200);
     }
@@ -188,21 +244,69 @@ export class Game {
     );
 
     // Draw instructions
-    this.renderer.drawText(
-      'Use WASD or Arrow Keys to move',
-      10,
-      60,
-      '#aaaaaa',
-      '16px monospace'
-    );
+    let instructionY = 60;
+    
+    if (this.useAccelerometer) {
+      this.renderer.drawText(
+        'Tilt device to move',
+        10,
+        instructionY,
+        '#00ff88',
+        '16px monospace'
+      );
+      instructionY += 25;
+      
+      if (this.inputManager.hasMotionSensors()) {
+        this.renderer.drawText(
+          'Press T to use keyboard',
+          10,
+          instructionY,
+          '#aaaaaa',
+          '14px monospace'
+        );
+        instructionY += 25;
+      }
+    } else {
+      this.renderer.drawText(
+        'Use WASD or Arrow Keys to move',
+        10,
+        instructionY,
+        '#aaaaaa',
+        '16px monospace'
+      );
+      instructionY += 25;
+      
+      if (this.inputManager.hasMotionSensors() && this.inputManager.hasMotionPermission()) {
+        this.renderer.drawText(
+          'Press T to use accelerometer',
+          10,
+          instructionY,
+          '#aaaaaa',
+          '14px monospace'
+        );
+        instructionY += 25;
+      }
+    }
 
     this.renderer.drawText(
       'Press P to pause/resume',
       10,
-      85,
+      instructionY,
       '#aaaaaa',
       '16px monospace'
     );
+
+    // Show permission button message if needed
+    if (this.showPermissionButton) {
+      const context = this.renderer.getContext();
+      this.renderer.drawText(
+        'Tap screen to enable tilt controls',
+        context.width / 2 - 150,
+        context.height - 50,
+        '#ffaa00',
+        'bold 16px monospace'
+      );
+    }
 
     // Draw pause indicator
     if (this.gameLoop.isPaused()) {

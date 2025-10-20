@@ -21,6 +21,24 @@ window.addEventListener('DOMContentLoaded', () => {
     // Make game accessible from console for debugging
     (window as any).game = game;
     
+    // Add touch event listener to request motion permission on iOS
+    // This must be triggered by a user gesture
+    let permissionRequested = false;
+    const requestPermissionOnTouch = async () => {
+      if (!permissionRequested && game.getInputManager().hasMotionSensors() && !game.getInputManager().hasMotionPermission()) {
+        permissionRequested = true;
+        console.log('Requesting motion sensor permission...');
+        await game.requestMotionPermission();
+        // Remove listener after first request
+        document.removeEventListener('touchstart', requestPermissionOnTouch);
+        document.removeEventListener('click', requestPermissionOnTouch);
+      }
+    };
+    
+    // Listen for both touch and click events (click for testing on desktop)
+    document.addEventListener('touchstart', requestPermissionOnTouch, { once: false });
+    document.addEventListener('click', requestPermissionOnTouch, { once: false });
+    
   } catch (error) {
     console.error('Failed to initialize game:', error);
     
