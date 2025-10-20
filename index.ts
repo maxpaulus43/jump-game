@@ -13,31 +13,21 @@ window.addEventListener('DOMContentLoaded', () => {
     // Create game instance
     const game = new Game('gameCanvas');
     
-    // Start the game
-    game.start();
-    
-    console.log('Game started successfully!');
-    
     // Make game accessible from console for debugging
     (window as any).game = game;
     
-    // Add touch event listener to request motion permission on iOS
-    // This must be triggered by a user gesture
-    let permissionRequested = false;
-    const requestPermissionOnTouch = async () => {
-      if (!permissionRequested && game.getInputManager().hasMotionSensors() && !game.getInputManager().hasMotionPermission()) {
-        permissionRequested = true;
-        console.log('Requesting motion sensor permission...');
-        await game.requestMotionPermission();
-        // Remove listener after first request
-        document.removeEventListener('touchstart', requestPermissionOnTouch);
-        document.removeEventListener('click', requestPermissionOnTouch);
-      }
-    };
+    // Check if we need to show permission button (iOS 13+)
+    const needsPermission = game.getInputManager().hasMotionSensors() && 
+                           !game.getInputManager().hasMotionPermission();
     
-    // Listen for both touch and click events (click for testing on desktop)
-    document.addEventListener('touchstart', requestPermissionOnTouch, { once: false });
-    document.addEventListener('click', requestPermissionOnTouch, { once: false });
+    if (needsPermission) {
+      // Create start button overlay for iOS permission
+      createStartButton(game);
+    } else {
+      // Start game immediately if no permission needed
+      game.start();
+      console.log('Game started successfully!');
+    }
     
   } catch (error) {
     console.error('Failed to initialize game:', error);
@@ -62,3 +52,180 @@ window.addEventListener('DOMContentLoaded', () => {
     `;
   }
 });
+
+/**
+ * Create a start button overlay for requesting motion permission
+ * This ensures the permission request happens in a direct user gesture context
+ */
+function createStartButton(game: Game): void {
+  // Create overlay container
+  const overlay = document.createElement('div');
+  overlay.id = 'start-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(26, 26, 46, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    font-family: monospace;
+  `;
+  
+  // Create title
+  const title = document.createElement('h1');
+  title.textContent = 'Tilt Controls';
+  title.style.cssText = `
+    color: #00ff88;
+    font-size: 32px;
+    margin-bottom: 20px;
+    text-align: center;
+  `;
+  
+  // Create description
+  const description = document.createElement('p');
+  description.textContent = 'This game uses your device\'s motion sensors';
+  description.style.cssText = `
+    color: #ffffff;
+    font-size: 16px;
+    margin-bottom: 40px;
+    text-align: center;
+    max-width: 300px;
+  `;
+  
+  // Create start button
+  const button = document.createElement('button');
+  button.textContent = 'Enable Motion Controls';
+  button.style.cssText = `
+    background-color: #00ff88;
+    color: #1a1a2e;
+    border: none;
+    padding: 15px 30px;
+    font-size: 18px;
+    font-weight: bold;
+    font-family: monospace;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.1s, background-color 0.2s;
+  `;
+  
+  // Add hover effect
+  button.addEventListener('mouseenter', () => {
+    button.style.backgroundColor = '#00dd77';
+  });
+  button.addEventListener('mouseleave', () => {
+    button.style.backgroundColor = '#00ff88';
+  });
+  
+  // Add active effect
+  button.addEventListener('mousedown', () => {
+    button.style.transform = 'scale(0.95)';
+  });
+  button.addEventListener('mouseup', () => {
+    button.style.transform = 'scale(1)';
+  });
+  
+  // Handle button click/touch - MUST be synchronous for iOS
+  const handleButtonPress = async () => {
+    console.log('Start button pressed, requesting permission...');
+    
+    // Disable button during request
+    button.disabled = true;
+    button.textContent = 'Requesting Permission...';
+    button.style.backgroundColor = '#666666';
+    button.style.cursor = 'not-allowed';
+    
+    try {
+      // Request permission - this MUST happen synchronously in the click handler
+      const granted = await game.requestMotionPermission();
+      
+      if (granted) {
+        console.log('Permission granted!');
+        button.textContent = 'Starting Game...';
+        
+        // Small delay for visual feedback
+        setTimeout(() => {
+          overlay.remove();
+          game.start();
+          console.log('Game started successfully!');
+        }, 500);
+      } else {
+        console.log('Permission denied');
+        button.textContent = 'Permission Denied';
+        button.style.backgroundColor = '#ff4444';
+        
+        // Show fallback message
+        setTimeout(() => {
+          button.textContent = 'Start Without Motion';
+          button.style.backgroundColor = '#00ff88';
+          button.style.cursor = 'pointer';
+          button.disabled = false;
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error during permission request:', error);
+      button.textContent = 'Error - Tap to Continue';
+      button.style.backgroundColor = '#ff4444';
+      button.style.cursor = 'pointer';
+      button.disabled = false;
+    }
+  };
+  
+  // Add both click and touchend listeners for better mobile support
+  button.addEventListener('click', handleButtonPress);
+  button.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    handleButtonPress();
+  });
+  
+  // Create skip button for keyboard users
+  const skipButton = document.createElement('button');
+  skipButton.textContent = 'Use Keyboard Instead';
+  skipButton.style.cssText = `
+    background-color: transparent;
+    color: #aaaaaa;
+    border: 1px solid #aaaaaa;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-family: monospace;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: color 0.2s, border-color 0.2s;
+  `;
+  
+  skipButton.addEventListener('mouseenter', () => {
+    skipButton.style.color = '#ffffff';
+    skipButton.style.borderColor = '#ffffff';
+  });
+  skipButton.addEventListener('mouseleave', () => {
+    skipButton.style.color = '#aaaaaa';
+    skipButton.style.borderColor = '#aaaaaa';
+  });
+  
+  const handleSkipPress = () => {
+    console.log('Skipping motion controls');
+    overlay.remove();
+    game.start();
+    console.log('Game started with keyboard controls');
+  };
+  
+  skipButton.addEventListener('click', handleSkipPress);
+  skipButton.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    handleSkipPress();
+  });
+  
+  // Assemble overlay
+  overlay.appendChild(title);
+  overlay.appendChild(description);
+  overlay.appendChild(button);
+  overlay.appendChild(skipButton);
+  
+  // Add to page
+  document.body.appendChild(overlay);
+}

@@ -90,8 +90,9 @@ export class Game {
 
   /**
    * Request motion sensor permission (for iOS)
+   * Returns true if permission was granted, false otherwise
    */
-  async requestMotionPermission(): Promise<void> {
+  async requestMotionPermission(): Promise<boolean> {
     const granted = await this.inputManager.requestMotionPermission();
     if (granted) {
       this.useAccelerometer = true;
@@ -100,6 +101,7 @@ export class Game {
     } else {
       console.log('Motion permission denied');
     }
+    return granted;
   }
 
   /**
