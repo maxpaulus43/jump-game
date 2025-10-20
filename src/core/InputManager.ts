@@ -1,4 +1,4 @@
-import type { InputState, Vector2D, AccelerometerData, OrientationData } from '../types/index.js';
+import type { InputState, Vec2, AccelerometerData, OrientationData } from '../types/index.js';
 
 /**
  * InputManager handles all input: keyboard, mouse, accelerometer, and touch
@@ -74,7 +74,7 @@ export class InputManager {
   /**
    * Get current mouse position
    */
-  getMousePosition(): Vector2D {
+  getMousePosition(): Vec2 {
     return {
       x: this.inputState.mouse.x,
       y: this.inputState.mouse.y
@@ -99,13 +99,13 @@ export class InputManager {
    * Get tilt as a normalized 2D vector for game controls
    * Returns { x: -1 to 1, y: -1 to 1 } based on device tilt
    */
-  getTiltVector(): Vector2D {
+  getTiltVector(): Vec2 {
     if (!this.inputState.orientation) {
       return { x: 0, y: 0 };
     }
 
     const { beta, gamma } = this.inputState.orientation;
-    
+
     if (beta === null || gamma === null) {
       return { x: 0, y: 0 };
     }
@@ -164,11 +164,11 @@ export class InputManager {
       try {
         const permission = await (DeviceMotionEvent as any).requestPermission();
         this.inputState.motionPermissionGranted = permission === 'granted';
-        
+
         if (this.inputState.motionPermissionGranted) {
           this.enableMotionSensors();
         }
-        
+
         return this.inputState.motionPermissionGranted;
       } catch (error) {
         console.error('Error requesting motion permission:', error);
@@ -187,7 +187,7 @@ export class InputManager {
    */
   private handleKeyDown(event: KeyboardEvent): void {
     this.inputState.keys.set(event.key, true);
-    
+
     // Prevent default behavior for game keys
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) {
       event.preventDefault();
@@ -238,8 +238,8 @@ export class InputManager {
    * Check if motion sensors are available on this device
    */
   private checkMotionSensorAvailability(): void {
-    this.inputState.hasMotionSensors = 
-      'DeviceMotionEvent' in window && 
+    this.inputState.hasMotionSensors =
+      'DeviceMotionEvent' in window &&
       'DeviceOrientationEvent' in window;
   }
 
@@ -286,7 +286,7 @@ export class InputManager {
   private handleTouchStart(event: TouchEvent): void {
     event.preventDefault();
     this.inputState.touch.isActive = true;
-    
+
     for (let i = 0; i < event.touches.length; i++) {
       const touch = event.touches[i];
       this.inputState.touch.touches.set(touch.identifier, {
@@ -301,7 +301,7 @@ export class InputManager {
    */
   private handleTouchMove(event: TouchEvent): void {
     event.preventDefault();
-    
+
     for (let i = 0; i < event.touches.length; i++) {
       const touch = event.touches[i];
       this.inputState.touch.touches.set(touch.identifier, {
@@ -316,20 +316,20 @@ export class InputManager {
    */
   private handleTouchEnd(event: TouchEvent): void {
     event.preventDefault();
-    
+
     // Remove ended touches
     const activeTouchIds = new Set<number>();
     for (let i = 0; i < event.touches.length; i++) {
       activeTouchIds.add(event.touches[i].identifier);
     }
-    
+
     // Remove touches that are no longer active
     for (const [id] of this.inputState.touch.touches) {
       if (!activeTouchIds.has(id)) {
         this.inputState.touch.touches.delete(id);
       }
     }
-    
+
     this.inputState.touch.isActive = this.inputState.touch.touches.size > 0;
   }
 }

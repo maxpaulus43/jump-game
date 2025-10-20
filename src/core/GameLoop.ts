@@ -15,7 +15,7 @@ export class GameLoop {
   constructor(config: GameLoopConfig) {
     this.config = config;
     this.fixedDeltaTime = 1 / config.targetFPS;
-    
+
     this.state = {
       running: false,
       paused: false,
@@ -59,7 +59,7 @@ export class GameLoop {
     }
 
     this.state.running = false;
-    
+
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;

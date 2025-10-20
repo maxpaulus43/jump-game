@@ -88,16 +88,6 @@ export interface InputState {
 }
 
 /**
- * 2D vector for positions, velocities, and directions
- */
-export interface Vector2D {
-  /** X component */
-  x: number;
-  /** Y component */
-  y: number;
-}
-
-/**
  * Canvas rendering context wrapper
  */
 export interface RenderContext {

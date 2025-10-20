@@ -1,8 +1,7 @@
 import { GameLoop } from './GameLoop.js';
 import { Renderer } from './Renderer.js';
 import { InputManager } from './InputManager.js';
-import { Vector2DUtils } from '../utils/Vector2D.js';
-import type { Vector2D } from '../types/index.js';
+import { Player } from './Player.js';
 
 /**
  * Game class orchestrates all game systems
@@ -13,12 +12,7 @@ export class Game {
   private renderer: Renderer;
   private inputManager: InputManager;
   private canvas: HTMLCanvasElement;
-
-  // Test game state - a moving circle
-  private playerPosition: Vector2D;
-  private playerVelocity: Vector2D;
-  private playerSpeed: number;
-  private playerRadius: number;
+  private player: Player;
 
   // FPS tracking
   private frameCount: number;
@@ -48,11 +42,8 @@ export class Game {
       maxDeltaTime: 0.25 // Prevent spiral of death
     });
 
-    // Initialize test game state
-    this.playerPosition = { x: 0, y: 0 };
-    this.playerVelocity = { x: 0, y: 0 };
-    this.playerSpeed = 300; // pixels per second (increased for better mobile feel)
-    this.playerRadius = 20;
+    // Player will be initialized in initialize()
+    this.player = new Player();
 
     // FPS tracking
     this.frameCount = 0;
@@ -70,17 +61,22 @@ export class Game {
    * Initialize game state
    */
   private initialize(): void {
-    // Center player on screen
+    // Initialize player at center of screen
     const context = this.renderer.getContext();
-    this.playerPosition = {
-      x: context.width / 2,
-      y: context.height / 2
-    };
+    this.player = new Player({
+      position: { x: context.width / 2, y: context.height / 2 },
+      radius: 20,
+      gravity: 3000,
+      restitution: 1.0,
+      acceleration: 1200,
+      maxSpeed: 800,
+      color: '#ffbf00ff'
+    });
 
     // Check if motion sensors are available and request permission if needed
     if (this.inputManager.hasMotionSensors()) {
       this.showPermissionButton = !this.inputManager.hasMotionPermission();
-      
+
       // Auto-enable accelerometer on Android (no permission needed)
       if (this.inputManager.hasMotionPermission()) {
         this.useAccelerometer = true;
@@ -151,44 +147,14 @@ export class Game {
    * @param dt - Fixed delta time in seconds
    */
   private update(dt: number): void {
-    // Handle input for player movement
-    this.playerVelocity = { x: 0, y: 0 };
-
-    // Use accelerometer if enabled, otherwise use keyboard
-    if (this.useAccelerometer && this.inputManager.hasMotionPermission()) {
-      // Get tilt vector from accelerometer
-      const tilt = this.inputManager.getTiltVector();
-      this.playerVelocity.x = tilt.x;
-      this.playerVelocity.y = tilt.y;
-    } else {
-      // WASD or Arrow keys for movement
-      if (this.inputManager.isKeyPressed('w') || this.inputManager.isKeyPressed('ArrowUp')) {
-        this.playerVelocity.y -= 1;
-      }
-      if (this.inputManager.isKeyPressed('s') || this.inputManager.isKeyPressed('ArrowDown')) {
-        this.playerVelocity.y += 1;
-      }
-      if (this.inputManager.isKeyPressed('a') || this.inputManager.isKeyPressed('ArrowLeft')) {
-        this.playerVelocity.x -= 1;
-      }
-      if (this.inputManager.isKeyPressed('d') || this.inputManager.isKeyPressed('ArrowRight')) {
-        this.playerVelocity.x += 1;
-      }
-
-      // Normalize velocity for consistent diagonal movement
-      if (this.playerVelocity.x !== 0 || this.playerVelocity.y !== 0) {
-        this.playerVelocity = Vector2DUtils.normalize(this.playerVelocity);
-      }
-    }
-
-    // Apply velocity to position (frame-rate independent)
-    const movement = Vector2DUtils.multiply(this.playerVelocity, this.playerSpeed * dt);
-    this.playerPosition = Vector2DUtils.add(this.playerPosition, movement);
-
-    // Keep player within screen bounds
+    // Update player
     const context = this.renderer.getContext();
-    this.playerPosition.x = Math.max(this.playerRadius, Math.min(context.width - this.playerRadius, this.playerPosition.x));
-    this.playerPosition.y = Math.max(this.playerRadius, Math.min(context.height - this.playerRadius, this.playerPosition.y));
+    this.player.update(
+      dt,
+      this.inputManager,
+      this.useAccelerometer,
+      { width: context.width, height: context.height }
+    );
 
     // Pause/unpause with P key
     if (this.inputManager.isKeyPressed('p')) {
@@ -220,12 +186,7 @@ export class Game {
     this.renderer.fillBackground('#1a1a2e');
 
     // Draw player
-    this.renderer.drawCircle(
-      this.playerPosition.x,
-      this.playerPosition.y,
-      this.playerRadius,
-      '#00ff88'
-    );
+    this.player.render(this.renderer);
 
     // Update FPS counter
     this.frameCount++;
@@ -247,7 +208,7 @@ export class Game {
 
     // Draw instructions
     let instructionY = 60;
-    
+
     if (this.useAccelerometer) {
       this.renderer.drawText(
         'Tilt device to move',
@@ -257,7 +218,7 @@ export class Game {
         '16px monospace'
       );
       instructionY += 25;
-      
+
       if (this.inputManager.hasMotionSensors()) {
         this.renderer.drawText(
           'Press T to use keyboard',
@@ -277,7 +238,7 @@ export class Game {
         '16px monospace'
       );
       instructionY += 25;
-      
+
       if (this.inputManager.hasMotionSensors() && this.inputManager.hasMotionPermission()) {
         this.renderer.drawText(
           'Press T to use accelerometer',
