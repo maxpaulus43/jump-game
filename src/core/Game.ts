@@ -2,6 +2,9 @@ import { GameLoop } from './GameLoop.js';
 import { Renderer } from './Renderer.js';
 import { InputManager } from './InputManager.js';
 import { Player } from './Player.js';
+import { Platform } from '../entities/Platform.js';
+import { CollisionDetector } from '../physics/CollisionDetector.js';
+import { CollisionResolver } from '../physics/CollisionResolver.js';
 
 /**
  * Game class orchestrates all game systems
@@ -9,10 +12,11 @@ import { Player } from './Player.js';
  */
 export class Game {
   private gameLoop: GameLoop;
-  private renderer: Renderer;
-  private inputManager: InputManager;
-  private canvas: HTMLCanvasElement;
-  private player: Player;
+  public readonly renderer: Renderer;
+  public readonly inputManager: InputManager;
+  public readonly canvas: HTMLCanvasElement;
+  private player: Player = new Player();
+  private platforms: Platform[] = [];
 
   // FPS tracking
   private frameCount: number;
@@ -42,9 +46,6 @@ export class Game {
       maxDeltaTime: 0.25 // Prevent spiral of death
     });
 
-    // Player will be initialized in initialize()
-    this.player = new Player();
-
     // FPS tracking
     this.frameCount = 0;
     this.lastFpsUpdate = performance.now();
@@ -72,6 +73,48 @@ export class Game {
       maxSpeed: 800,
       color: '#ffbf00ff'
     });
+
+    // Initialize platforms
+    this.platforms = [
+      // Bottom platform (ground)
+      new Platform({
+        position: { x: 50, y: context.height - 50 },
+        width: context.width - 100,
+        height: 30,
+        material: { restitution: 0.3, friction: 0.5 }
+      }),
+
+      // Staircase pattern
+      new Platform({
+        position: { x: 100, y: context.height - 150 },
+        width: 150,
+        height: 20
+      }),
+      new Platform({
+        position: { x: 300, y: context.height - 250 },
+        width: 150,
+        height: 20
+      }),
+      new Platform({
+        position: { x: 500, y: context.height - 350 },
+        width: 150,
+        height: 20
+      }),
+
+      // Floating platforms in middle
+      new Platform({
+        position: { x: context.width / 2 - 100, y: context.height / 2 },
+        width: 200,
+        height: 20
+      }),
+
+      // Small platform (edge case testing)
+      new Platform({
+        position: { x: context.width - 200, y: context.height - 200 },
+        width: 80,
+        height: 15
+      })
+    ];
 
     // Check if motion sensors are available and request permission if needed
     if (this.inputManager.hasMotionSensors()) {
@@ -148,13 +191,30 @@ export class Game {
    */
   private update(dt: number): void {
     // Update player
-    const context = this.renderer.getContext();
+    const context = this.renderer.context;
+
     this.player.update(
       dt,
       this.inputManager,
       this.useAccelerometer,
       { width: context.width, height: context.height }
     );
+
+    // Check collisions between player and platforms
+    for (const platform of this.platforms) {
+      const playerShape = this.player.getCollisionShape();
+      const platformShape = platform.getCollisionShape();
+
+      const collisionResult = CollisionDetector.checkCollision(
+        playerShape,
+        platformShape
+      );
+
+      if (collisionResult.colliding) {
+        // Resolve collision using CollisionResolver
+        CollisionResolver.resolveCollision(this.player, platform, collisionResult);
+      }
+    }
 
     // Pause/unpause with P key
     if (this.inputManager.isKeyPressed('p')) {
@@ -184,6 +244,11 @@ export class Game {
 
     // Fill background
     this.renderer.fillBackground('#1a1a2e');
+
+    // Draw platforms
+    for (const platform of this.platforms) {
+      platform.render(this.renderer);
+    }
 
     // Draw player
     this.player.render(this.renderer);

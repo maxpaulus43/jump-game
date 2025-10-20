@@ -1,4 +1,5 @@
-import type { InputState, Vec2, AccelerometerData, OrientationData } from '../types/index.js';
+import { Vec2 } from '../utils/Vec2.js';
+import type { InputState, AccelerometerData, OrientationData } from '../types/index.js';
 
 /**
  * InputManager handles all input: keyboard, mouse, accelerometer, and touch
@@ -75,10 +76,7 @@ export class InputManager {
    * Get current mouse position
    */
   getMousePosition(): Vec2 {
-    return {
-      x: this.inputState.mouse.x,
-      y: this.inputState.mouse.y
-    };
+    return new Vec2(this.inputState.mouse.x, this.inputState.mouse.y);
   }
 
   /**
@@ -101,13 +99,13 @@ export class InputManager {
    */
   getTiltVector(): Vec2 {
     if (!this.inputState.orientation) {
-      return { x: 0, y: 0 };
+      return new Vec2(0, 0);
     }
 
     const { beta, gamma } = this.inputState.orientation;
 
     if (beta === null || gamma === null) {
-      return { x: 0, y: 0 };
+      return new Vec2(0, 0);
     }
 
     // Map tilt angles to -1 to 1 range
@@ -123,7 +121,7 @@ export class InputManager {
     const finalX = Math.abs(x) < deadZone ? 0 : x;
     const finalY = Math.abs(y) < deadZone ? 0 : y;
 
-    return { x: finalX, y: finalY };
+    return new Vec2(finalX, finalY);
   }
 
   /**

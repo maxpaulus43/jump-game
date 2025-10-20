@@ -1,6 +1,14 @@
 import { Vec2 } from '../utils/Vec2.js';
 import type { Renderer } from './Renderer.js';
 import type { InputManager } from './InputManager.js';
+import { CollisionShapeType } from '../types/index.js';
+import type {
+  Collidable,
+  CollisionShape,
+  CircleShape,
+  CollisionMaterial,
+  CollisionResult
+} from '../types/index.js';
 
 /**
  * Configuration options for creating a Player
@@ -19,14 +27,13 @@ export interface PlayerConfig {
  * Player class encapsulates all player-related logic
  * Handles physics, input, rendering, and collision
  */
-export class Player {
+export class Player implements Collidable {
   private position: Vec2;
   private velocity: Vec2;
   private radius: number;
   private gravity: number;
   private restitution: number;
   private acceleration: number;
-  private maxSpeed: number;
   private color: string;
 
   constructor(config: PlayerConfig = {}) {
@@ -39,7 +46,6 @@ export class Player {
     this.gravity = config.gravity || 1500;
     this.restitution = config.restitution || 1.0;
     this.acceleration = config.acceleration || 1200;
-    this.maxSpeed = config.maxSpeed || 800;
     this.color = config.color || '#00ff88';
   }
 
@@ -103,17 +109,6 @@ export class Player {
   }
 
   /**
-   * Cap velocity to maximum speed
-   */
-  private capVelocity(): void {
-    const speed = this.velocity.magnitude();
-    if (speed > this.maxSpeed) {
-      // Normalize and scale to max speed (mutates velocity in-place)
-      this.velocity.normalize().multiply(this.maxSpeed);
-    }
-  }
-
-  /**
    * Handle collisions with world boundaries (with bouncing)
    * @returns true if a collision occurred, false otherwise
    */
@@ -151,30 +146,60 @@ export class Player {
   }
 
   /**
-   * Get current position (returns clone to prevent external mutation)
+   * Get collision shape for this player (Collidable interface)
+   * 
+   * @returns Circle collision shape
    */
-  getPosition(): Vec2 {
-    return this.position.clone();
+  getCollisionShape(): CollisionShape {
+    const shape: CircleShape = {
+      type: CollisionShapeType.Circle,
+      x: this.position.x,
+      y: this.position.y,
+      radius: this.radius
+    };
+    return shape;
   }
 
   /**
-   * Set position
+   * Get collision material properties (Collidable interface)
+   * 
+   * @returns Material with restitution and friction
    */
-  setPosition(pos: { x: number; y: number }): void {
-    this.position.set(pos.x, pos.y);
+  getCollisionMaterial(): CollisionMaterial {
+    return {
+      restitution: this.restitution,
+      friction: 0.1  // Low friction for smooth movement
+    };
   }
 
   /**
-   * Get current velocity (returns clone to prevent external mutation)
+   * Handle collision with another entity (Collidable interface)
+   * 
+   * For platform collisions, apply bounce physics only when landing on top.
+   * 
+   * @param other - The other collidable entity
+   * @param result - Collision result data
    */
-  getVelocity(): Vec2 {
-    return this.velocity.clone();
-  }
+  onCollision(other: Collidable, result: CollisionResult): void {
+    // Only apply bounce if hitting from above (normal pointing up)
+    // This prevents sticking to sides/bottom of platforms
+    if (result.normal.y < -0.5) {
+      // Landing on top of platform
+      // Calculate bounce velocity using combined restitution
+      const combinedRestitution = this.restitution * other.getCollisionMaterial().restitution;
 
-  /**
-   * Get radius
-   */
-  getRadius(): number {
-    return this.radius;
+      // Reflect velocity along normal with restitution
+      const velocityDotNormal = this.velocity.x * result.normal.x + this.velocity.y * result.normal.y;
+
+      // Apply bounce (only if moving into the surface)
+      if (velocityDotNormal < 0) {
+        this.velocity.x -= (1 + combinedRestitution) * velocityDotNormal * result.normal.x;
+        this.velocity.y -= (1 + combinedRestitution) * velocityDotNormal * result.normal.y;
+      }
+
+      // Separate shapes to prevent overlap
+      this.position.x += result.normal.x * result.depth;
+      this.position.y += result.normal.y * result.depth;
+    }
   }
 }

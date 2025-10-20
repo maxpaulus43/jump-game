@@ -5,10 +5,10 @@ import type { RenderContext } from '../types/index.js';
  * Provides high-level drawing primitives and manages canvas state
  */
 export class Renderer {
-  private canvas: HTMLCanvasElement;
-  private ctx: CanvasRenderingContext2D;
-  private width: number;
-  private height: number;
+  public readonly canvas: HTMLCanvasElement;
+  public readonly ctx: CanvasRenderingContext2D;
+  public readonly width: number;
+  public readonly height: number;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;

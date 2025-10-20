@@ -98,3 +98,37 @@ export interface RenderContext {
   /** Canvas height in pixels */
   height: number;
 }
+
+/**
+ * Platform type enumeration for future extensibility
+ */
+export enum PlatformType {
+  Standard = 'standard',
+  Moving = 'moving',      // For future use
+  Weak = 'weak',          // For future use
+  Powerup = 'powerup'     // For future use
+}
+
+/**
+ * Configuration for creating a platform
+ */
+export interface PlatformConfig {
+  /** Position (top-left corner) */
+  position?: { x: number; y: number };
+  /** Width in pixels */
+  width?: number;
+  /** Height in pixels */
+  height?: number;
+  /** Platform type */
+  type?: PlatformType;
+  /** Visual color */
+  color?: string;
+  /** Collision material properties */
+  material?: {
+    restitution?: number;
+    friction?: number;
+  };
+}
+
+// Re-export collision types
+export * from './collision.js';
