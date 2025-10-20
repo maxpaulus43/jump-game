@@ -27,6 +27,9 @@ export class Game {
   private useAccelerometer: boolean;
   private showPermissionButton: boolean;
 
+  // Debug visualization
+  private debugRaycasts: boolean = true;
+
   constructor(canvasId: string) {
     // Get canvas element
     const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
@@ -191,7 +194,7 @@ export class Game {
    */
   private update(dt: number): void {
     // Update player
-    const context = this.renderer.context;
+    const context = this.renderer.getContext();
 
     this.player.update(
       dt,
@@ -199,6 +202,9 @@ export class Game {
       this.useAccelerometer,
       { width: context.width, height: context.height }
     );
+
+    // Raycast ground detection (demonstrates raycast usage)
+    this.player.checkGrounded(this.platforms);
 
     // Check collisions between player and platforms
     for (const platform of this.platforms) {
@@ -214,6 +220,13 @@ export class Game {
         // Resolve collision using CollisionResolver
         CollisionResolver.resolveCollision(this.player, platform, collisionResult);
       }
+    }
+
+    // Toggle debug visualization with R key
+    if (this.inputManager.isKeyPressed('r')) {
+      this.debugRaycasts = !this.debugRaycasts;
+      // Small delay to prevent rapid toggling
+      setTimeout(() => { }, 200);
     }
 
     // Pause/unpause with P key
@@ -239,6 +252,9 @@ export class Game {
    * Render current frame
    */
   private render(): void {
+    // Get rendering context
+    const context = this.renderer.getContext();
+
     // Clear canvas
     this.renderer.clear();
 
@@ -252,6 +268,46 @@ export class Game {
 
     // Draw player
     this.player.render(this.renderer);
+
+    // Debug: Draw raycast visualization
+    // TODO make an entire Debug object responsible for updating and rendering debug elements
+    if (this.debugRaycasts) {
+      const playerPos = this.player.getPosition();
+      const playerRadius = this.player.getRadius();
+      const raycastResult = this.player.getGroundRaycastResult();
+
+      // Draw ground detection ray
+      this.renderer.drawRay(
+        playerPos.x,
+        playerPos.y,
+        0,  // direction X
+        1,  // direction Y (downward)
+        playerRadius + 5,  // maxDistance
+        this.player.getIsGrounded() ? '#00ff00' : '#ff00ff',  // Green if grounded, magenta if not
+        2
+      );
+
+      // If ray hit something, draw hit point and normal
+      if (raycastResult.hit) {
+        this.renderer.drawRaycastHit(
+          raycastResult.point.x,
+          raycastResult.point.y,
+          raycastResult.normal.x,
+          raycastResult.normal.y,
+          '#00ff00',
+          20
+        );
+      }
+
+      // Draw grounded status
+      this.renderer.drawText(
+        `Grounded: ${this.player.getIsGrounded() ? 'YES' : 'NO'}`,
+        10,
+        context.height - 30,
+        this.player.getIsGrounded() ? '#00ff00' : '#ff0000',
+        '16px monospace'
+      );
+    }
 
     // Update FPS counter
     this.frameCount++;
@@ -322,6 +378,15 @@ export class Game {
       instructionY,
       '#aaaaaa',
       '16px monospace'
+    );
+    instructionY += 25;
+
+    this.renderer.drawText(
+      `Press R to ${this.debugRaycasts ? 'hide' : 'show'} raycast debug`,
+      10,
+      instructionY,
+      '#aaaaaa',
+      '14px monospace'
     );
 
     // Show permission button message if needed

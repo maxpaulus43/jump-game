@@ -90,15 +90,23 @@ export class Renderer {
 
   /**
    * Draw text on the canvas
+   * 
+   * @param text - Text to draw
+   * @param x - X position
+   * @param y - Y position
+   * @param color - Text color
+   * @param font - Font specification (e.g. "16px Arial")
    */
-  drawText(text: string, x: number, y: number, color: string, font: string = '16px Arial'): void {
-    this.ctx.fillStyle = color;
+  drawText(text: string, x: number, y: number, color: string = '#ffffff', font: string = '16px Arial'): void {
     this.ctx.font = font;
+    this.ctx.fillStyle = color;
     this.ctx.fillText(text, x, y);
   }
 
   /**
-   * Fill the entire canvas with a color
+   * Fill the entire canvas with a solid color
+   * 
+   * @param color - Fill color
    */
   fillBackground(color: string): void {
     this.ctx.fillStyle = color;
@@ -106,10 +114,83 @@ export class Renderer {
   }
 
   /**
-   * Get canvas width
+   * Draw a ray for debug visualization
+   * 
+   * @param originX - Ray origin X
+   * @param originY - Ray origin Y
+   * @param directionX - Ray direction X (should be normalized)
+   * @param directionY - Ray direction Y (should be normalized)
+   * @param maxDistance - Maximum ray length
+   * @param color - Ray color
+   * @param lineWidth - Line width
    */
-  getWidth(): number {
-    return this.width;
+  drawRay(
+    originX: number,
+    originY: number,
+    directionX: number,
+    directionY: number,
+    maxDistance: number,
+    color: string = '#ff00ff',
+    lineWidth: number = 2
+  ): void {
+    const endX = originX + directionX * maxDistance;
+    const endY = originY + directionY * maxDistance;
+
+    // Draw the ray line
+    this.drawLine(originX, originY, endX, endY, color, lineWidth);
+
+    // Draw arrow head to show direction
+    const arrowSize = 8;
+    const arrowAngle = Math.PI / 6; // 30 degrees
+
+    // Calculate arrow direction
+    const angle = Math.atan2(directionY, directionX);
+
+    // Calculate arrow points
+    const arrow1X = endX - arrowSize * Math.cos(angle - arrowAngle);
+    const arrow1Y = endY - arrowSize * Math.sin(angle - arrowAngle);
+    const arrow2X = endX - arrowSize * Math.cos(angle + arrowAngle);
+    const arrow2Y = endY - arrowSize * Math.sin(angle + arrowAngle);
+
+    // Draw arrow head
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = lineWidth;
+    this.ctx.beginPath();
+    this.ctx.moveTo(endX, endY);
+    this.ctx.lineTo(arrow1X, arrow1Y);
+    this.ctx.moveTo(endX, endY);
+    this.ctx.lineTo(arrow2X, arrow2Y);
+    this.ctx.stroke();
+  }
+
+  /**
+   * Draw a raycast hit point for debug visualization
+   * 
+   * @param hitX - Hit point X
+   * @param hitY - Hit point Y
+   * @param normalX - Surface normal X
+   * @param normalY - Surface normal Y
+   * @param color - Color for the hit point
+   * @param normalLength - Length of the normal vector to draw
+   */
+  drawRaycastHit(
+    hitX: number,
+    hitY: number,
+    normalX: number,
+    normalY: number,
+    color: string = '#00ff00',
+    normalLength: number = 20
+  ): void {
+    // Draw hit point as a circle
+    this.drawCircle(hitX, hitY, 4, color);
+
+    // Draw surface normal
+    const normalEndX = hitX + normalX * normalLength;
+    const normalEndY = hitY + normalY * normalLength;
+    this.drawLine(hitX, hitY, normalEndX, normalEndY, color, 2);
+
+    // Draw small circle at end of normal
+    this.drawCircle(normalEndX, normalEndY, 2, color);
   }
 
   /**

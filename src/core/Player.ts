@@ -7,8 +7,11 @@ import type {
   CollisionShape,
   CircleShape,
   CollisionMaterial,
-  CollisionResult
+  CollisionResult,
+  Ray,
+  RaycastResult
 } from '../types/index.js';
+import { CollisionDetector } from '../physics/CollisionDetector.js';
 
 /**
  * Configuration options for creating a Player
@@ -35,6 +38,17 @@ export class Player implements Collidable {
   private restitution: number;
   private acceleration: number;
   private color: string;
+  private isGrounded: boolean = false;
+
+  // Reusable raycast result (zero-allocation pattern)
+  private groundRaycastResult: RaycastResult = {
+    hit: false,
+    distance: 0,
+    point: { x: 0, y: 0 },
+    normal: { x: 0, y: 0 },
+    entity: null,
+    shape: null
+  };
 
   constructor(config: PlayerConfig = {}) {
     // Create Vec2 instances for position and velocity
@@ -102,6 +116,10 @@ export class Player implements Collidable {
       }
       if (inputManager.isKeyPressed('d') || inputManager.isKeyPressed('ArrowRight')) {
         inputAccel.x += this.acceleration;
+      }
+      if (inputManager.isKeyPressed(' ')) {
+        // Spacebar resets velocity
+        this.velocity.y += this.acceleration;
       }
     }
 
@@ -201,5 +219,66 @@ export class Player implements Collidable {
       this.position.x += result.normal.x * result.depth;
       this.position.y += result.normal.y * result.depth;
     }
+  }
+
+  /**
+   * Check if player is grounded using raycast
+   * This demonstrates how any entity can use raycasts for ground detection
+   * 
+   * @param platforms - Array of collidable platforms to check against
+   * @returns True if player is standing on a platform
+   */
+  checkGrounded(platforms: Collidable[]): boolean {
+    // Define ray: cast downward from player center
+    const ray: Ray = {
+      origin: { x: this.position.x, y: this.position.y },
+      direction: { x: 0, y: 1 },  // Downward (canvas Y increases downward)
+      maxDistance: this.radius + 5  // Slightly beyond radius to detect nearby ground
+    };
+
+    // Cast ray against all platforms (reuses result object for performance)
+    CollisionDetector.raycast(ray, platforms, this.groundRaycastResult);
+
+    // Consider grounded if hit is within acceptable range
+    this.isGrounded = this.groundRaycastResult.hit &&
+      this.groundRaycastResult.distance <= this.radius + 2;
+
+    return this.isGrounded;
+  }
+
+  /**
+   * Get whether player is currently grounded
+   * 
+   * @returns True if player is on ground
+   */
+  getIsGrounded(): boolean {
+    return this.isGrounded;
+  }
+
+  /**
+   * Get the last ground raycast result for debugging
+   * 
+   * @returns The raycast result from last ground check
+   */
+  getGroundRaycastResult(): RaycastResult {
+    return this.groundRaycastResult;
+  }
+
+  /**
+   * Get player position (returns clone for safety)
+   * 
+   * @returns Position vector
+   */
+  getPosition(): Vec2 {
+    return this.position.clone();
+  }
+
+  /**
+   * Get player radius
+   * 
+   * @returns Radius in pixels
+   */
+  getRadius(): number {
+    return this.radius;
   }
 }

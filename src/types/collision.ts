@@ -83,3 +83,33 @@ export interface Collidable {
   /** Handle collision response */
   onCollision(other: Collidable, result: CollisionResult): void;
 }
+
+/**
+ * Raycast result containing hit information
+ */
+export interface RaycastResult {
+  /** Whether the ray hit something */
+  hit: boolean;
+  /** Distance from ray origin to hit point (0 if no hit) */
+  distance: number;
+  /** Point where ray intersected (world coordinates) */
+  point: { x: number; y: number };
+  /** Surface normal at hit point (direction perpendicular to surface) */
+  normal: { x: number; y: number };
+  /** The entity that was hit (null if no hit) */
+  entity: Collidable | null;
+  /** The collision shape that was hit (null if no hit) */
+  shape: CollisionShape | null;
+}
+
+/**
+ * Ray definition for raycasting
+ */
+export interface Ray {
+  /** Origin point of the ray */
+  origin: { x: number; y: number };
+  /** Direction vector (should be normalized for accurate distance calculations) */
+  direction: { x: number; y: number };
+  /** Maximum distance the ray can travel */
+  maxDistance: number;
+}
