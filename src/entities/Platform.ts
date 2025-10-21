@@ -6,9 +6,8 @@
  */
 
 import { Vec2 } from '../utils/Vec2.js';
-import { Renderer } from '../core/Renderer.js';
-import { 
-  PlatformConfig, 
+import {
+  PlatformConfig,
   PlatformType,
   Collidable,
   CollisionShape,
@@ -17,6 +16,7 @@ import {
   CollisionMaterial,
   CollisionResult
 } from '../types/index.js';
+import { Renderer } from '../types/renderer.js';
 
 export class Platform implements Collidable {
   private position: Vec2;

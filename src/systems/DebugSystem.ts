@@ -5,8 +5,8 @@
  * Handles toggling debug features and rendering debug overlays.
  */
 
-import { Renderer } from '../core/Renderer.js';
 import { DebugConfig, DebugData, DebugFeature, RaycastDebugInfo, DebugEntity } from '../types/debug.js';
+import { Renderer } from '../types/renderer.js';
 
 /**
  * Manages debug visualization
@@ -128,14 +128,12 @@ export class DebugSystem {
    * @param entities - Entity debug information
    */
   private renderGroundedStatus(renderer: Renderer, entities: DebugEntity[]): void {
-    const context = renderer.getContext();
-
     for (const entity of entities) {
       if (entity.isGrounded !== undefined) {
         renderer.drawText(
           `Grounded: ${entity.isGrounded ? 'YES' : 'NO'}`,
           10,
-          context.height - 30,
+          renderer.getHeight() - 30,
           entity.isGrounded ? '#00ff00' : '#ff0000',
           '16px monospace'
         );

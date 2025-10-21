@@ -5,16 +5,16 @@
  * Follows zero-allocation patterns where possible using optional output parameters.
  */
 
-import { 
-  CollisionShape, 
-  CollisionShapeType, 
-  CircleShape, 
-  RectangleShape, 
+import {
+  CollisionShape,
+  CollisionShapeType,
+  CircleShape,
+  RectangleShape,
   CollisionResult,
   Ray,
   RaycastResult,
   Collidable
-} from '../types/collision.js';
+} from '../../types/collision.js';
 
 export class CollisionDetector {
   /**
@@ -257,10 +257,10 @@ export class CollisionDetector {
     out?: CollisionResult
   ): CollisionResult {
     // Calculate overlap on each axis
-    const overlapX = Math.min(rectA.x + rectA.width, rectB.x + rectB.width) - 
-                     Math.max(rectA.x, rectB.x);
-    const overlapY = Math.min(rectA.y + rectA.height, rectB.y + rectB.height) - 
-                     Math.max(rectA.y, rectB.y);
+    const overlapX = Math.min(rectA.x + rectA.width, rectB.x + rectB.width) -
+      Math.max(rectA.x, rectB.x);
+    const overlapY = Math.min(rectA.y + rectA.height, rectB.y + rectB.height) -
+      Math.max(rectA.y, rectB.y);
 
     // Check if rectangles are overlapping
     const colliding = overlapX > 0 && overlapY > 0;
@@ -268,7 +268,7 @@ export class CollisionDetector {
     if (colliding) {
       // Determine collision axis (smallest overlap)
       const depth = Math.min(overlapX, overlapY);
-      
+
       let normalX = 0;
       let normalY = 0;
 
@@ -332,10 +332,10 @@ export class CollisionDetector {
    * @returns True if point is inside rectangle
    */
   static pointVsRectangle(x: number, y: number, rect: RectangleShape): boolean {
-    return x >= rect.x && 
-           x <= rect.x + rect.width && 
-           y >= rect.y && 
-           y <= rect.y + rect.height;
+    return x >= rect.x &&
+      x <= rect.x + rect.width &&
+      y >= rect.y &&
+      y <= rect.y + rect.height;
   }
 
   // ==================== RAYCAST METHODS ====================
@@ -582,7 +582,7 @@ export class CollisionDetector {
 
     // Determine which face was hit by checking hit point position
     const epsilon = 0.0001;
-    
+
     if (Math.abs(hitX - rect.x) < epsilon) {
       // Left face
       normalX = -1;

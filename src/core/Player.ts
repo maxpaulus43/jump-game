@@ -1,5 +1,4 @@
 import { Vec2 } from '../utils/Vec2.js';
-import type { Renderer } from './Renderer.js';
 import type { InputController } from '../types/input.js';
 import { CollisionShapeType } from '../types/index.js';
 import type {
@@ -11,7 +10,8 @@ import type {
   Ray,
   RaycastResult
 } from '../types/index.js';
-import { CollisionDetector } from '../physics/CollisionDetector.js';
+import { CollisionDetector } from '../systems/physics/CollisionDetector.js';
+import { Renderer } from '../types/renderer.js';
 
 /**
  * Configuration options for creating a Player

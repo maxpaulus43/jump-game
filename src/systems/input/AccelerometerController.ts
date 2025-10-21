@@ -5,9 +5,9 @@
  * Converts device tilt to movement acceleration vectors
  */
 
-import { InputController, AccelerometerControllerConfig } from '../types/input.js';
-import { InputManager } from '../core/InputManager.js';
-import { Vec2 } from '../utils/Vec2.js';
+import { InputController, AccelerometerControllerConfig } from '../../types/input.js';
+import { InputManager } from './InputManager.js';
+import { Vec2 } from '../../utils/Vec2.js';
 
 /**
  * AccelerometerController implements input control via device accelerometer

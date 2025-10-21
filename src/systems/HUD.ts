@@ -5,13 +5,13 @@
  * pause indicator, and permission prompts.
  */
 
-import { Renderer } from '../core/Renderer.js';
+import { Renderer } from '../types/renderer.js';
 import { HUDConfig, UIGameState } from '../types/ui.js';
 
 /**
  * Manages UI/HUD rendering
  */
-export class HUDRenderer {
+export class HUD {
   private config: HUDConfig;
 
   /**
@@ -141,11 +141,10 @@ export class HUDRenderer {
    * @param renderer - Renderer instance
    */
   renderPauseIndicator(renderer: Renderer): void {
-    const context = renderer.getContext();
     renderer.drawText(
       'PAUSED',
-      context.width / 2 - 50,
-      context.height / 2,
+      renderer.getWidth() / 2 - 50,
+      renderer.getHeight() / 2,
       '#ff0000',
       'bold 32px monospace'
     );
@@ -156,11 +155,10 @@ export class HUDRenderer {
    * @param renderer - Renderer instance
    */
   renderPermissionPrompt(renderer: Renderer): void {
-    const context = renderer.getContext();
     renderer.drawText(
       'Tap screen to enable tilt controls',
-      context.width / 2 - 150,
-      context.height - 50,
+      renderer.getWidth() / 2 - 150,
+      renderer.getHeight() - 50,
       '#ffaa00',
       'bold 16px monospace'
     );

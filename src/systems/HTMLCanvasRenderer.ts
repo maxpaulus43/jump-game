@@ -1,18 +1,20 @@
 import type { RenderContext } from '../types/index.js';
+import type { Renderer } from "../types/renderer.js"
+import type { Sprite } from "../types/sprite.js"
 
 /**
  * Renderer class handles all Canvas API interactions
  * Provides high-level drawing primitives and manages canvas state
  */
-export class Renderer {
+export class HTMLCanvasRenderer implements Renderer {
   public readonly canvas: HTMLCanvasElement;
   public readonly ctx: CanvasRenderingContext2D;
-  public width: number;
-  public height: number;
+  private width: number;
+  private height: number;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    
+
     const context = canvas.getContext('2d');
     if (!context) {
       throw new Error('Failed to get 2D rendering context');
@@ -26,6 +28,10 @@ export class Renderer {
     // Set up resize handling
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  drawSprite(sprite: Sprite, x: number, y: number, width: number, height: number): void {
+    throw new Error('Method not implemented.');
   }
 
   /**
@@ -53,7 +59,7 @@ export class Renderer {
     // Set canvas size to match window
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
-    
+
     this.width = this.canvas.width;
     this.height = this.canvas.height;
   }
@@ -193,10 +199,10 @@ export class Renderer {
     this.drawCircle(normalEndX, normalEndY, 2, color);
   }
 
-  /**
-   * Get canvas height
-   */
   getHeight(): number {
     return this.height;
+  }
+  getWidth(): number {
+    return this.width;
   }
 }

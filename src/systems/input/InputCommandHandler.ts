@@ -5,7 +5,7 @@
  * Handles command registration and execution.
  */
 
-import { InputManager } from '../core/InputManager.js';
+import { InputManager } from './InputManager.js';
 
 /**
  * Command callback function type

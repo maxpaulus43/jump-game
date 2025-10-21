@@ -5,8 +5,8 @@
  * Works with Collidable entities to apply collision responses.
  */
 
-import { Vec2 } from '../utils/Vec2.js';
-import type { Collidable, CollisionResult } from '../types/index.js';
+import { Vec2 } from '../../utils/Vec2.js';
+import type { Collidable, CollisionResult } from '../../types/index.js';
 
 export class CollisionResolver {
   /**

@@ -5,9 +5,9 @@
  * Maps keyboard input to movement acceleration vectors
  */
 
-import { InputController, KeyboardControllerConfig } from '../types/input.js';
-import { InputManager } from '../core/InputManager.js';
-import { Vec2 } from '../utils/Vec2.js';
+import { InputController, KeyboardControllerConfig } from '../../types/input.js';
+import { InputManager } from './InputManager.js';
+import { Vec2 } from '../../utils/Vec2.js';
 
 /**
  * KeyboardController implements input control via keyboard

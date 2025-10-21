@@ -5,10 +5,10 @@
  * Provides centralized entity management and coordination
  */
 
-import { Renderer } from './Renderer.js';
 import { Entity } from '../types/world.js';
 import { Collidable } from '../types/collision.js';
 import { Platform } from '../entities/Platform.js';
+import { Renderer } from '../types/renderer.js';
 
 /**
  * World class manages all game entities
@@ -25,7 +25,7 @@ export class World {
    */
   addEntity(entity: Entity): void {
     this.entities.push(entity);
-    
+
     // Track platforms separately for quick access
     if (entity instanceof Platform) {
       this.platforms.push(entity);
@@ -84,9 +84,9 @@ export class World {
     // Filter entities that implement Collidable interface
     // Cast is safe because we check for all required Collidable methods
     return this.entities.filter((entity): entity is Entity & Collidable => {
-      return 'getCollisionShape' in entity && 
-             'getCollisionMaterial' in entity &&
-             'onCollision' in entity;
+      return 'getCollisionShape' in entity &&
+        'getCollisionMaterial' in entity &&
+        'onCollision' in entity;
     }) as Collidable[];
   }
 

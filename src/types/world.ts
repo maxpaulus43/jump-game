@@ -4,7 +4,7 @@
  * Type definitions for world/entity management system
  */
 
-import { Renderer } from '../core/Renderer.js';
+import { Renderer } from '../types/renderer.js';
 import { Vec2 } from '../utils/Vec2.js';
 
 /**
@@ -15,12 +15,12 @@ export interface Entity {
    * Update entity state
    */
   update(dt: number): void;
-  
+
   /**
    * Render entity
    */
   render(renderer: Renderer): void;
-  
+
   /**
    * Get entity position
    */
@@ -35,7 +35,7 @@ export interface PhysicalEntity extends Entity {
    * Get velocity for physics calculations
    */
   getVelocity(): Vec2;
-  
+
   /**
    * Apply force to entity
    */

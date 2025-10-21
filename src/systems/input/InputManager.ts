@@ -1,5 +1,13 @@
-import { Vec2 } from '../utils/Vec2.js';
-import type { InputState, AccelerometerData, OrientationData } from '../types/index.js';
+import { Vec2 } from '../../utils/Vec2.js';
+import type { InputState, AccelerometerData, OrientationData } from '../../types/index.js';
+
+// enum DeviceCapability {
+//   ACCELEROMETER,
+// }
+
+// export interface InputManagerConfig {
+//   requestedCapabilities: DeviceCapability[];
+// }
 
 /**
  * InputManager handles all input: keyboard, mouse, accelerometer, and touch
@@ -27,13 +35,7 @@ export class InputManager {
       motionPermissionGranted: false
     };
     this.motionSensorsEnabled = false;
-  }
 
-  /**
-   * Initialize event listeners for input handling
-   * Should be called once during game setup
-   */
-  initialize(): void {
     // Keyboard events
     window.addEventListener('keydown', (e) => this.handleKeyDown(e));
     window.addEventListener('keyup', (e) => this.handleKeyUp(e));

@@ -1,35 +1,34 @@
 import { GameLoop } from './GameLoop.js';
-import { Renderer } from './Renderer.js';
-import { InputManager } from './InputManager.js';
+import { InputManager } from '../systems/input/InputManager.js';
 import { Player } from './Player.js';
 import { World } from './World.js';
 import { Platform } from '../entities/Platform.js';
 import { Vec2 } from '../utils/Vec2.js';
 import { FPSCounter } from '../systems/FPSCounter.js';
-import { HUDRenderer } from '../systems/HUDRenderer.js';
+import { HUD } from '../systems/HUD.js';
 import { DebugSystem } from '../systems/DebugSystem.js';
-import { InputCommandHandler } from '../systems/InputCommandHandler.js';
-import { PhysicsSystem } from '../systems/PhysicsSystem.js';
-import { KeyboardController } from '../input/KeyboardController.js';
-import { AccelerometerController } from '../input/AccelerometerController.js';
+import { InputCommandHandler } from '../systems/input/InputCommandHandler.js';
+import { PhysicsSystem } from '../systems/physics/PhysicsSystem.js';
+import { KeyboardController } from '../systems/input/KeyboardController.js';
+import { AccelerometerController } from '../systems/input/AccelerometerController.js';
 import type { InputController } from '../types/input.js';
 import { DebugFeature, DebugData, UIGameState } from '../types/index.js';
+import { Renderer } from '../types/renderer.js';
 
 /**
  * Game class orchestrates all game systems
  * Manages the game lifecycle and coordinates between subsystems
  */
 export class Game {
-  private gameLoop: GameLoop;
   public readonly renderer: Renderer;
   public readonly inputManager: InputManager;
-  public readonly canvas: HTMLCanvasElement;
+  private gameLoop: GameLoop;
   private player: Player = new Player();
   private world: World;
 
   // Systems
   private fpsCounter: FPSCounter;
-  private hudRenderer: HUDRenderer;
+  private hud: HUD;
   private debugSystem: DebugSystem;
   private inputCommandHandler: InputCommandHandler;
   private physicsSystem: PhysicsSystem;
@@ -40,21 +39,11 @@ export class Game {
   private activeController: InputController;
 
   // Mobile controls
-  private useAccelerometer: boolean;
   private showPermissionButton: boolean;
 
-  constructor(canvasId: string) {
-    // Get canvas element
-    const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
-    if (!canvas) {
-      throw new Error(`Canvas element with id "${canvasId}" not found`);
-    }
-    this.canvas = canvas;
-
-    // Initialize subsystems
-    this.renderer = new Renderer(this.canvas);
-    this.inputManager = new InputManager();
-    this.inputManager.initialize();
+  constructor(renderer: Renderer, inputManager: InputManager) {
+    this.renderer = renderer;
+    this.inputManager = inputManager;
 
     // Create game loop with 60 FPS target
     this.gameLoop = new GameLoop({
@@ -62,12 +51,11 @@ export class Game {
       maxDeltaTime: 0.25 // Prevent spiral of death
     });
 
-    // Initialize world
     this.world = new World();
 
     // Initialize systems
     this.fpsCounter = new FPSCounter();
-    this.hudRenderer = new HUDRenderer();
+    this.hud = new HUD();
     this.debugSystem = new DebugSystem();
     this.inputCommandHandler = new InputCommandHandler(this.inputManager);
     this.physicsSystem = new PhysicsSystem({
@@ -93,7 +81,6 @@ export class Game {
     });
 
     // Mobile controls
-    this.useAccelerometer = false;
     this.showPermissionButton = false;
 
     this.initialize();
@@ -104,9 +91,11 @@ export class Game {
    */
   private initialize(): void {
     // Initialize player at center of screen
-    const context = this.renderer.getContext();
+    const w = this.renderer.getWidth();
+    const h = this.renderer.getHeight();
+
     this.player = new Player({
-      position: { x: context.width / 2, y: context.height / 2 },
+      position: { x: w / 2, y: h / 2 },
       radius: 20,
       gravity: 3000,
       restitution: 1.0,
@@ -118,39 +107,39 @@ export class Game {
     // Initialize platforms and add them to world
     // Bottom platform (ground)
     this.world.addEntity(new Platform({
-      position: { x: 50, y: context.height - 50 },
-      width: context.width - 100,
+      position: { x: 50, y: h - 50 },
+      width: w - 100,
       height: 30,
       material: { restitution: 0.3, friction: 0.5 }
     }));
 
     // Staircase pattern
     this.world.addEntity(new Platform({
-      position: { x: 100, y: context.height - 150 },
+      position: { x: 100, y: h - 150 },
       width: 150,
       height: 20
     }));
     this.world.addEntity(new Platform({
-      position: { x: 300, y: context.height - 250 },
+      position: { x: 300, y: h - 250 },
       width: 150,
       height: 20
     }));
     this.world.addEntity(new Platform({
-      position: { x: 500, y: context.height - 350 },
+      position: { x: 500, y: h - 350 },
       width: 150,
       height: 20
     }));
 
     // Floating platforms in middle
     this.world.addEntity(new Platform({
-      position: { x: context.width / 2 - 100, y: context.height / 2 },
+      position: { x: w / 2 - 100, y: h / 2 },
       width: 200,
       height: 20
     }));
 
     // Small platform (edge case testing)
     this.world.addEntity(new Platform({
-      position: { x: context.width - 200, y: context.height - 200 },
+      position: { x: w - 200, y: h - 200 },
       width: 80,
       height: 15
     }));
@@ -171,50 +160,18 @@ export class Game {
       deadZone: 0.1
     });
 
-    // Check if motion sensors are available and request permission if needed
-    if (this.inputManager.hasMotionSensors()) {
-      this.showPermissionButton = !this.inputManager.hasMotionPermission();
-
-      // Auto-enable accelerometer on Android (no permission needed)
-      if (this.inputManager.hasMotionPermission()) {
-        this.useAccelerometer = true;
-      }
-    }
-
     // Set initial active controller based on device capabilities
-    this.activeController = this.useAccelerometer 
-      ? this.accelerometerController 
+    this.activeController = this.inputManager.hasMotionPermission()
+      ? this.accelerometerController
       : this.keyboardController;
-  }
-
-  /**
-   * Request motion sensor permission (for iOS)
-   * Returns true if permission was granted, false otherwise
-   */
-  async requestMotionPermission(): Promise<boolean> {
-    const granted = await this.inputManager.requestMotionPermission();
-    if (granted) {
-      this.useAccelerometer = true;
-      this.showPermissionButton = false;
-      console.log('Motion sensors enabled');
-    } else {
-      console.log('Motion permission denied');
-    }
-    return granted;
   }
 
   /**
    * Toggle accelerometer controls on/off
    */
   toggleAccelerometer(): void {
-    if (this.inputManager.hasMotionSensors() && this.inputManager.hasMotionPermission()) {
-      this.useAccelerometer = !this.useAccelerometer;
-      
-      // Switch active controller reference
-      this.activeController = this.useAccelerometer
-        ? this.accelerometerController
-        : this.keyboardController;
-    }
+    this.activeController = this.activeController === this.accelerometerController
+      ? this.keyboardController : this.accelerometerController;
   }
 
   /**
@@ -258,18 +215,15 @@ export class Game {
     // Handle input commands (pause, debug toggle, etc.)
     this.inputCommandHandler.update();
 
-    // Update player
-    const context = this.renderer.getContext();
-
     this.player.update(
       dt,
       this.activeController,
-      { width: context.width, height: context.height }
+      { width: this.renderer.getWidth(), height: this.renderer.getHeight() }
     );
 
     // Get platforms from world for ground detection
     const platforms = this.world.getPlatforms();
-    
+
     // Raycast ground detection (demonstrates raycast usage)
     this.player.checkGrounded(platforms as any[]);
 
@@ -325,14 +279,14 @@ export class Game {
     const uiState: UIGameState = {
       fps: this.fpsCounter.getFPS(),
       paused: this.gameLoop.isPaused(),
-      useAccelerometer: this.useAccelerometer,
+      useAccelerometer: this.inputManager.hasMotionPermission(),
       showPermissionPrompt: this.showPermissionButton,
       debugEnabled: this.debugSystem.isFeatureEnabled(DebugFeature.Raycasts),
       hasMotionSensors: this.inputManager.hasMotionSensors(),
       hasMotionPermission: this.inputManager.hasMotionPermission()
     };
 
-    this.hudRenderer.render(this.renderer, uiState);
+    this.hud.render(this.renderer, uiState);
   }
 
   /**
@@ -340,19 +294,5 @@ export class Game {
    */
   getGameLoop(): GameLoop {
     return this.gameLoop;
-  }
-
-  /**
-   * Get the renderer instance
-   */
-  getRenderer(): Renderer {
-    return this.renderer;
-  }
-
-  /**
-   * Get the input manager instance
-   */
-  getInputManager(): InputManager {
-    return this.inputManager;
   }
 }

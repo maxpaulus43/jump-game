@@ -1,4 +1,8 @@
 import { Game } from './src/core/Game.js';
+import { HTMLCanvasRenderer as HTMLCanvasRenderer } from './src/systems/HTMLCanvasRenderer.js';
+import { InputManager } from './src/systems/input/InputManager.js';
+import { PhysicsSystem } from './src/systems/physics/PhysicsSystem.js';
+import { Vec2 } from './src/utils/Vec2.js';
 
 /**
  * Entry point for the game
@@ -11,18 +15,24 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log('Initializing game...');
 
     // Create game instance
-    const game = new Game('gameCanvas');
+    const canvasId = 'gameCanvas';
+    const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
+    const renderer = new HTMLCanvasRenderer(canvas)
+
+    const inputManager = new InputManager();
+
+    const game = new Game(renderer, inputManager);
 
     // Make game accessible from console for debugging
     (window as any).game = game;
 
     // Check if we need to show permission button (iOS 13+)
-    const needsPermission = game.getInputManager().hasMotionSensors() &&
-      !game.getInputManager().hasMotionPermission();
+    const needsPermission = inputManager.hasMotionSensors() &&
+      !inputManager.hasMotionPermission();
 
     if (needsPermission) {
       // Create start button overlay for iOS permission
-      createStartButton(game);
+      createStartButton(game, inputManager);
     } else {
       // Start game immediately if no permission needed
       game.start();
@@ -57,7 +67,7 @@ window.addEventListener('DOMContentLoaded', () => {
  * Create a start button overlay for requesting motion permission
  * This ensures the permission request happens in a direct user gesture context
  */
-function createStartButton(game: Game): void {
+function createStartButton(game: Game, inputManager: InputManager): void {
   // Create overlay container
   const overlay = document.createElement('div');
   overlay.id = 'start-overlay';
@@ -141,7 +151,7 @@ function createStartButton(game: Game): void {
 
     try {
       // Request permission - this MUST happen synchronously in the click handler
-      const granted = await game.requestMotionPermission();
+      const granted = await inputManager.requestMotionPermission();
 
       if (granted) {
         console.log('Permission granted!');
