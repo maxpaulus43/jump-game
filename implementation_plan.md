@@ -1,564 +1,731 @@
-# Implementation Plan: Collision Detection System with Platforms
+# Implementation Plan: Game Architecture Refactoring
 
-## Overview
+## [Overview]
 
-This implementation adds a modular, reusable collision detection system to support platforms that the player can bounce on. The system is designed to be extensible for future features like moving platforms, weak platforms, and powerup platforms while maintaining the existing architecture's principles of performance, type safety, and separation of concerns.
+Refactor Game.ts and Player.ts to extract system responsibilities, improving maintainability and extensibility by following Single Responsibility Principle.
 
-## Context
+The current codebase has Game.ts handling too many responsibilities (~350 lines) including rendering, debug visualization, UI/HUD, input commands, physics orchestration, and platform management. Player.ts also has tight coupling to InputManager through direct input processing. This refactoring will extract these concerns into dedicated systems, reducing the main Game class to ~150 lines of pure orchestration and making each system independently testable and extendable.
 
-The current game uses a fixed timestep loop with frame-rate independent physics. The Player class has basic boundary collision detection with bouncing physics. We need to create a collision detection system that:
-- Supports multiple entity types (Player, Platform, and future entities)
-- Provides reusable collision detection algorithms
-- Integrates seamlessly with existing physics simulation
-- Follows the zero-allocation performance patterns used by Vec2
-- Maintains strict TypeScript typing with no `any` types
-- Is extensible for future collision behaviors
+The refactoring will be done in phases to minimize risk, starting with the highest-impact changes (Debug and HUD extraction) that provide immediate code clarity benefits, then progressing to deeper architectural improvements (Input abstraction, Physics system, World management).
 
-The game will have static platforms initially, with the architecture supporting dynamic platforms in the future. Platforms use rectangle collision shapes while the player uses a circle.
+## [Types]
 
-## Types
+Define new type definitions and interfaces for the extracted systems.
 
-Define comprehensive type system for collision detection, shapes, and collision events.
+### New Type Definitions
 
-### Collision Shape Types (`src/types/collision.ts` - new file):
-
+**src/types/debug.ts** - Debug system types:
 ```typescript
 /**
- * Types of collision shapes supported
+ * Debug visualization features that can be toggled
  */
-export enum CollisionShapeType {
-  Circle = 'circle',
-  Rectangle = 'rectangle'
+export enum DebugFeature {
+  Raycasts = 'raycasts',
+  Colliders = 'colliders',
+  Velocity = 'velocity',
+  FPS = 'fps'
 }
 
 /**
- * Base interface for all collision shapes
+ * Configuration for debug system
  */
-export interface CollisionShape {
-  type: CollisionShapeType;
+export interface DebugConfig {
+  enabled: boolean;
+  features: Set<DebugFeature>;
 }
 
 /**
- * Circle collision shape
+ * Debug data passed to debug renderer
  */
-export interface CircleShape extends CollisionShape {
-  type: CollisionShapeType.Circle;
-  /** Center position X */
-  x: number;
-  /** Center position Y */
-  y: number;
-  /** Radius */
-  radius: number;
+export interface DebugData {
+  entities: DebugEntity[];
+  raycasts: RaycastDebugInfo[];
+  fps: number;
 }
 
 /**
- * Axis-Aligned Bounding Box (rectangle) collision shape
+ * Entity debug information
  */
-export interface RectangleShape extends CollisionShape {
-  type: CollisionShapeType.Rectangle;
-  /** Top-left X position */
-  x: number;
-  /** Top-left Y position */
-  y: number;
-  /** Width */
+export interface DebugEntity {
+  position: { x: number; y: number };
+  velocity?: { x: number; y: number };
+  collisionShape: CollisionShape;
+  isGrounded?: boolean;
+}
+
+/**
+ * Raycast debug information
+ */
+export interface RaycastDebugInfo {
+  origin: { x: number; y: number };
+  direction: { x: number; y: number };
+  maxDistance: number;
+  result: RaycastResult;
+  color: string;
+}
+```
+
+**src/types/ui.ts** - UI/HUD system types:
+```typescript
+/**
+ * Game state information for UI rendering
+ */
+export interface UIGameState {
+  fps: number;
+  paused: boolean;
+  useAccelerometer: boolean;
+  showPermissionPrompt: boolean;
+  debugEnabled: boolean;
+  hasMotionSensors: boolean;
+  hasMotionPermission: boolean;
+}
+
+/**
+ * Configuration for HUD renderer
+ */
+export interface HUDConfig {
+  showFPS: boolean;
+  showInstructions: boolean;
+  showPauseIndicator: boolean;
+}
+```
+
+**src/types/input.ts** - Input controller types:
+```typescript
+/**
+ * Input controller interface for entity control
+ */
+export interface InputController {
+  /**
+   * Get movement acceleration vector
+   * @param dt - Delta time for frame-rate independent input
+   * @returns Acceleration vector
+   */
+  getMovementInput(dt: number): Vec2;
+  
+  /**
+   * Get jump input
+   * @returns True if jump input is active
+   */
+  getJumpInput(): boolean;
+  
+  /**
+   * Get action input (e.g., shoot, interact)
+   * @returns True if action input is active
+   */
+  getActionInput(): boolean;
+}
+
+/**
+ * Configuration for keyboard controller
+ */
+export interface KeyboardControllerConfig {
+  moveUpKey: string;
+  moveDownKey: string;
+  moveLeftKey: string;
+  moveRightKey: string;
+  jumpKey: string;
+  actionKey: string;
+  acceleration: number;
+}
+
+/**
+ * Configuration for accelerometer controller
+ */
+export interface AccelerometerControllerConfig {
+  acceleration: number;
+  invertX: boolean;
+  invertY: boolean;
+  deadZone: number;
+}
+```
+
+**src/types/world.ts** - World/entity management types:
+```typescript
+/**
+ * Entity interface for world management
+ */
+export interface Entity {
+  /**
+   * Update entity state
+   */
+  update(dt: number): void;
+  
+  /**
+   * Render entity
+   */
+  render(renderer: Renderer): void;
+  
+  /**
+   * Get entity position
+   */
+  getPosition(): Vec2;
+}
+
+/**
+ * Physical entity that participates in physics simulation
+ */
+export interface PhysicalEntity extends Entity {
+  /**
+   * Get velocity for physics calculations
+   */
+  getVelocity(): Vec2;
+  
+  /**
+   * Apply force to entity
+   */
+  applyForce(force: Vec2): void;
+}
+
+/**
+ * World bounds definition
+ */
+export interface WorldBounds {
   width: number;
-  /** Height */
   height: number;
 }
-
-/**
- * Collision detection result
- */
-export interface CollisionResult {
-  /** Whether a collision occurred */
-  colliding: boolean;
-  /** Penetration depth (how much objects overlap) */
-  depth: number;
-  /** Normal vector pointing from shape A to shape B (direction to resolve collision) */
-  normal: { x: number; y: number };
-  /** Contact point (where collision occurred) */
-  contactPoint: { x: number; y: number };
-}
-
-/**
- * Material properties for collision response
- */
-export interface CollisionMaterial {
-  /** Bounciness coefficient (0 = no bounce, 1 = perfect bounce) */
-  restitution: number;
-  /** Friction coefficient (0 = no friction, 1 = full friction) */
-  friction: number;
-}
-
-/**
- * Interface for entities that can collide
- */
-export interface Collidable {
-  /** Get the collision shape for this entity */
-  getCollisionShape(): CollisionShape;
-  /** Get collision material properties */
-  getCollisionMaterial(): CollisionMaterial;
-  /** Handle collision response */
-  onCollision(other: Collidable, result: CollisionResult): void;
-}
 ```
 
-### Platform Configuration Types (`src/types/index.ts` - additions):
-
+**src/types/physics.ts** - Physics system types:
 ```typescript
 /**
- * Platform type enumeration for future extensibility
+ * Configuration for physics system
  */
-export enum PlatformType {
-  Standard = 'standard',
-  Moving = 'moving',      // For future use
-  Weak = 'weak',          // For future use
-  Powerup = 'powerup'     // For future use
+export interface PhysicsConfig {
+  gravity: Vec2;
+  enableCollisions: boolean;
 }
 
 /**
- * Configuration for creating a platform
+ * Physics simulation result
  */
-export interface PlatformConfig {
-  /** Position (top-left corner) */
-  position?: { x: number; y: number };
-  /** Width in pixels */
-  width?: number;
-  /** Height in pixels */
-  height?: number;
-  /** Platform type */
-  type?: PlatformType;
-  /** Visual color */
-  color?: string;
-  /** Collision material properties */
-  material?: {
-    restitution?: number;
-    friction?: number;
-  };
+export interface PhysicsResult {
+  collisions: CollisionPair[];
+}
+
+/**
+ * Collision pair information
+ */
+export interface CollisionPair {
+  entityA: Collidable;
+  entityB: Collidable;
+  result: CollisionResult;
 }
 ```
 
-## Files
+### Modified Types
 
-Detailed breakdown of all file modifications and creations.
+**src/types/index.ts** - Add exports for new type files:
+```typescript
+// Add these exports:
+export * from './debug.js';
+export * from './ui.js';
+export * from './input.js';
+export * from './world.js';
+export * from './physics.js';
+```
 
-### New Files to Create:
+## [Files]
 
-1. **`src/types/collision.ts`**
-   - Purpose: Central type definitions for collision system
-   - Contains: CollisionShapeType enum, shape interfaces, CollisionResult, CollisionMaterial, Collidable interface
-   - Exports: All types needed for collision detection
+Detailed breakdown of file modifications and new file creation.
 
-2. **`src/physics/CollisionDetector.ts`**
-   - Purpose: Core collision detection algorithms
-   - Contains: Static methods for shape-to-shape collision detection
-   - Methods: `circleVsCircle()`, `circleVsRectangle()`, `rectangleVsRectangle()`
-   - Design: Pure functions with optional output parameters for zero-allocation patterns
+### New Files to Create
 
-3. **`src/physics/CollisionResolver.ts`**
-   - Purpose: Handle collision response and physics resolution
-   - Contains: Methods to apply impulses, resolve penetration, calculate bounce
-   - Methods: `resolveCollision()`, `applyImpulse()`, `separateShapes()`
-   - Integrates with entity velocity and position
+1. **src/systems/DebugSystem.ts** (~150 lines)
+   - Purpose: Manages debug visualization state and rendering
+   - Handles toggling debug features
+   - Collects debug data from entities
+   - Renders debug overlays (raycasts, colliders, velocity, grounded status)
 
-4. **`src/entities/Platform.ts`**
-   - Purpose: Platform entity class
-   - Implements: Collidable interface
-   - Contains: Position, dimensions, rendering, collision shape generation
-   - Configurable: Size, color, material properties, type (for future extension)
+2. **src/systems/HUDRenderer.ts** (~120 lines)
+   - Purpose: Renders all UI/HUD elements
+   - FPS counter display
+   - Instruction text
+   - Pause indicator
+   - Permission prompt messages
+   - Separates UI rendering from game logic
 
-### Files to Modify:
+3. **src/systems/FPSCounter.ts** (~50 lines)
+   - Purpose: Tracks and calculates FPS
+   - Frame counting logic
+   - FPS calculation with 1-second update interval
+   - Provides current FPS value
 
-1. **`src/types/index.ts`**
-   - Add: PlatformType enum
-   - Add: PlatformConfig interface
-   - Add: Export for `./collision.js` types
+4. **src/systems/InputCommandHandler.ts** (~80 lines)
+   - Purpose: Maps input keys to game commands
+   - Registers command callbacks (pause, debug toggle, etc.)
+   - Polls input and executes commands
+   - Handles debouncing for toggle commands
 
-2. **`src/core/Player.ts`**
-   - Add: Implement Collidable interface
-   - Add: `getCollisionShape()` method
-   - Add: `getCollisionMaterial()` method
-   - Add: `onCollision()` method for handling platform collisions
-   - Modify: `handleBoundaryCollisions()` - keep existing but separate from platform collisions
-   - Add: `setVelocity()` method for collision response
+5. **src/systems/PhysicsSystem.ts** (~100 lines)
+   - Purpose: Orchestrates physics simulation
+   - Applies gravity to physical entities
+   - Detects collisions between entities
+   - Resolves collisions using CollisionResolver
+   - Configurable gravity settings
 
-3. **`src/core/Game.ts`**
-   - Add: Array of Platform instances
-   - Add: Platform initialization in `initialize()` method
-   - Modify: `update()` to check player-platform collisions
-   - Modify: `render()` to draw platforms
-   - Add: Collision detection loop using CollisionDetector
+6. **src/core/World.ts** (~120 lines)
+   - Purpose: Manages all game entities
+   - Entity add/remove operations
+   - Entity update loop
+   - Entity rendering loop
+   - Provides filtered entity access (collidables, physical entities)
 
-4. **`src/core/Renderer.ts`**
-   - Add: `drawPlatform()` or use existing `drawRect()` - no changes needed actually
+7. **src/input/InputController.ts** (~30 lines)
+   - Purpose: Interface definition for input controllers
+   - Pure interface file (TypeScript interface)
 
-### Configuration Files:
-- No changes to `package.json`, `tsconfig.json`, or `vite.config.ts` required
+8. **src/input/KeyboardController.ts** (~100 lines)
+   - Purpose: Keyboard input implementation
+   - Reads InputManager for keyboard state
+   - Maps keys to movement vectors
+   - Configurable key bindings
 
-## Functions
+9. **src/input/AccelerometerController.ts** (~80 lines)
+   - Purpose: Accelerometer input implementation
+   - Reads InputManager for tilt data
+   - Converts tilt to movement vectors
+   - Configurable sensitivity and dead zones
 
-Detailed breakdown of new and modified functions.
+10. **src/types/debug.ts** (~80 lines)
+    - Purpose: Debug system type definitions
 
-### New Functions in CollisionDetector:
+11. **src/types/ui.ts** (~50 lines)
+    - Purpose: UI/HUD type definitions
 
-**File**: `src/physics/CollisionDetector.ts`
+12. **src/types/input.ts** (~80 lines)
+    - Purpose: Input controller type definitions
 
-1. **`static checkCollision(shapeA: CollisionShape, shapeB: CollisionShape, out?: CollisionResult): CollisionResult`**
-   - Purpose: Main entry point for collision detection
-   - Dispatches to specific shape-vs-shape methods
-   - Parameters: Two shapes, optional output result for reuse
-   - Returns: CollisionResult with collision data
+13. **src/types/world.ts** (~60 lines)
+    - Purpose: World/entity type definitions
 
-2. **`static circleVsCircle(circleA: CircleShape, circleB: CircleShape, out?: CollisionResult): CollisionResult`**
-   - Purpose: Detect collision between two circles
-   - Algorithm: Compare distance between centers to sum of radii
-   - Returns: Collision result with depth and normal
+14. **src/types/physics.ts** (~50 lines)
+    - Purpose: Physics system type definitions
 
-3. **`static circleVsRectangle(circle: CircleShape, rect: RectangleShape, out?: CollisionResult): CollisionResult`**
-   - Purpose: Detect collision between circle and AABB
-   - Algorithm: Find closest point on rectangle to circle center, check distance
-   - Returns: Collision result with contact point and penetration
+### Files to Modify
 
-4. **`static rectangleVsRectangle(rectA: RectangleShape, rectB: RectangleShape, out?: CollisionResult): CollisionResult`**
-   - Purpose: Detect collision between two AABBs
-   - Algorithm: Check overlap on both axes
-   - Returns: Collision result with overlap data
-   - Note: For future use (not needed immediately)
+1. **src/core/Game.ts**
+   - Remove: Debug visualization code (~50 lines)
+   - Remove: HUD/UI rendering code (~80 lines)
+   - Remove: FPS tracking code (~10 lines)
+   - Remove: Input command handling code (~20 lines)
+   - Remove: Platform array management (~15 lines)
+   - Remove: Direct collision loop (~15 lines)
+   - Add: System initialization (DebugSystem, HUDRenderer, FPSCounter, InputCommandHandler, PhysicsSystem, World)
+   - Add: System orchestration in update() and render()
+   - Result: Reduce from ~350 lines to ~150 lines
 
-5. **`static pointVsRectangle(x: number, y: number, rect: RectangleShape): boolean`**
-   - Purpose: Helper to check if point is inside rectangle
-   - Returns: Boolean
+2. **src/core/Player.ts**
+   - Remove: `getInputAcceleration()` method
+   - Modify: `update()` signature to accept InputController instead of InputManager + useAccelerometer
+   - Add: `applyMovementForce()` method to apply processed input
+   - Add: Implement Entity and PhysicalEntity interfaces
+   - Result: Reduce from ~280 lines to ~200 lines
 
-### New Functions in CollisionResolver:
+3. **src/entities/Platform.ts**
+   - Add: Implement Entity interface
+   - Minor updates to match Entity interface
 
-**File**: `src/physics/CollisionResolver.ts`
+4. **src/types/index.ts**
+   - Add: Export statements for new type files
 
-1. **`static resolveCollision(entityA: Collidable, entityB: Collidable, result: CollisionResult): void`**
-   - Purpose: Apply collision response to both entities
-   - Handles: Velocity changes, position correction, restitution
-   - Mutates: Entity velocities and positions
+### Configuration Files
 
-2. **`static separateShapes(entityA: Collidable, entityB: Collidable, depth: number, normal: { x: number; y: number }): void`**
-   - Purpose: Separate overlapping shapes to resolve penetration
-   - Moves entities apart along collision normal
-   - Used for position correction
+No changes needed to:
+- package.json
+- tsconfig.json
+- vite.config.ts
 
-3. **`static calculateBounce(velocity: Vec2, normal: Vec2, restitution: number): Vec2`**
-   - Purpose: Calculate reflection velocity for bouncing
-   - Formula: v' = v - (1 + e) * (v · n) * n
-   - Returns: New velocity vector
+## [Functions]
 
-### Modified Functions in Player:
+Detailed breakdown of new, modified, and removed functions.
 
-**File**: `src/core/Player.ts`
+### New Functions
 
-1. **`getCollisionShape(): CollisionShape`** (NEW)
-   - Purpose: Return circle collision shape for player
-   - Returns: CircleShape with current position and radius
+**DebugSystem (src/systems/DebugSystem.ts)**:
+- `constructor(config: DebugConfig)` - Initialize debug system
+- `isEnabled(): boolean` - Check if debug is enabled
+- `toggle(feature: DebugFeature): void` - Toggle specific debug feature
+- `setEnabled(enabled: boolean): void` - Enable/disable debug system
+- `isFeatureEnabled(feature: DebugFeature): boolean` - Check if feature is enabled
+- `update(dt: number): void` - Update debug state (placeholder for future)
+- `render(renderer: Renderer, debugData: DebugData): void` - Render all debug visualizations
+- `private renderRaycasts(renderer: Renderer, raycasts: RaycastDebugInfo[]): void` - Render raycast lines
+- `private renderColliders(renderer: Renderer, entities: DebugEntity[]): void` - Render collision shapes
+- `private renderGroundedStatus(renderer: Renderer, entities: DebugEntity[], canvasHeight: number): void` - Render grounded text
 
-2. **`getCollisionMaterial(): CollisionMaterial`** (NEW)
-   - Purpose: Return material properties for collision
-   - Returns: Material with restitution and friction
+**HUDRenderer (src/systems/HUDRenderer.ts)**:
+- `constructor(config: HUDConfig)` - Initialize HUD renderer
+- `render(renderer: Renderer, state: UIGameState): void` - Render all HUD elements
+- `renderFPS(renderer: Renderer, fps: number): void` - Render FPS counter
+- `renderInstructions(renderer: Renderer, state: UIGameState): void` - Render control instructions
+- `renderPauseIndicator(renderer: Renderer, paused: boolean, canvas: HTMLCanvasElement): void` - Render pause overlay
+- `renderPermissionPrompt(renderer: Renderer, canvas: HTMLCanvasElement): void` - Render motion permission message
 
-3. **`onCollision(other: Collidable, result: CollisionResult): void`** (NEW)
-   - Purpose: Handle collision response
-   - Updates velocity based on collision normal and restitution
-   - Only applies bounce if hitting from above (for platforms)
+**FPSCounter (src/systems/FPSCounter.ts)**:
+- `constructor()` - Initialize counter state
+- `update(): void` - Update frame count and calculate FPS
+- `getFPS(): number` - Get current FPS value
+- `reset(): void` - Reset counter state
 
-4. **`setVelocity(velocity: Vec2): void`** (NEW)
-   - Purpose: Set velocity from external source (collision response)
-   - Parameters: New velocity vector
+**InputCommandHandler (src/systems/InputCommandHandler.ts)**:
+- `constructor(inputManager: InputManager)` - Initialize handler
+- `registerCommand(key: string, callback: () => void, debounceMs?: number): void` - Register key-to-command mapping
+- `unregisterCommand(key: string): void` - Remove command mapping
+- `update(): void` - Poll input and execute commands with debouncing
+- `private shouldExecute(key: string): boolean` - Check if command should execute (debounce check)
 
-5. **`update(...)`** (MODIFIED)
-   - Remove platform collision logic (will be handled by Game class)
-   - Keep boundary collision handling
-   - Existing functionality remains unchanged
+**PhysicsSystem (src/systems/PhysicsSystem.ts)**:
+- `constructor(config: PhysicsConfig)` - Initialize physics system
+- `update(dt: number, entities: PhysicalEntity[], collidables: Collidable[]): void` - Run physics simulation
+- `private applyGravity(entities: PhysicalEntity[], dt: number): void` - Apply gravity to all entities
+- `private detectCollisions(collidables: Collidable[]): CollisionPair[]` - Detect all collisions
+- `private resolveCollisions(collisions: CollisionPair[]): void` - Resolve detected collisions
+- `setGravity(gravity: Vec2): void` - Update gravity configuration
 
-### New Functions in Platform:
+**World (src/core/World.ts)**:
+- `constructor()` - Initialize empty world
+- `addEntity(entity: Entity): void` - Add entity to world
+- `removeEntity(entity: Entity): void` - Remove entity from world
+- `getEntities(): Entity[]` - Get all entities
+- `getCollidables(): Collidable[]` - Get entities implementing Collidable
+- `getPhysicalEntities(): PhysicalEntity[]` - Get entities implementing PhysicalEntity
+- `update(dt: number): void` - Update all entities
+- `render(renderer: Renderer): void` - Render all entities
+- `clear(): void` - Remove all entities
 
-**File**: `src/entities/Platform.ts`
+**KeyboardController (src/input/KeyboardController.ts)**:
+- `constructor(inputManager: InputManager, config: KeyboardControllerConfig)` - Initialize controller
+- `getMovementInput(dt: number): Vec2` - Calculate movement from keyboard
+- `getJumpInput(): boolean` - Check jump key state
+- `getActionInput(): boolean` - Check action key state
 
-1. **`constructor(config: PlatformConfig)`**
-   - Initialize position, dimensions, color, material
+**AccelerometerController (src/input/AccelerometerController.ts)**:
+- `constructor(inputManager: InputManager, config: AccelerometerControllerConfig)` - Initialize controller
+- `getMovementInput(dt: number): Vec2` - Calculate movement from accelerometer
+- `getJumpInput(): boolean` - No jump input for accelerometer
+- `getActionInput(): boolean` - No action input for accelerometer
 
-2. **`getCollisionShape(): CollisionShape`**
-   - Return RectangleShape for collision detection
+### Modified Functions
 
-3. **`getCollisionMaterial(): CollisionMaterial`**
-   - Return material properties (restitution, friction)
+**Game.ts**:
+- `constructor(canvasId: string)` - Add system initialization
+- `initialize(): void` - Simplified to only create player and add to world
+- `start(): void` - No changes
+- `stop(): void` - No changes
+- `update(dt: number): void` - Simplified to system orchestration only
+- `render(): void` - Simplified to system orchestration only
+- Remove: `requestMotionPermission()` - Move to InputCommandHandler or keep as-is
+- Remove: `toggleAccelerometer()` - Move to InputCommandHandler
 
-4. **`onCollision(other: Collidable, result: CollisionResult): void`**
-   - For static platforms: do nothing
-   - For future moving platforms: could affect platform behavior
+**Player.ts**:
+- `update(dt: number, inputController: InputController, bounds: WorldBounds): void` - Changed signature
+- Remove: `getInputAcceleration(inputManager: InputManager, useAccelerometer: boolean): Vec2`
+- Add: `applyMovementForce(force: Vec2): void` - New method to apply input forces
+- Add: `getVelocity(): Vec2` - Make public for PhysicsSystem (already exists, just make accessible)
+- Add: `applyForce(force: Vec2): void` - Implement PhysicalEntity interface
 
-5. **`render(renderer: Renderer): void`**
-   - Draw platform rectangle using Renderer
+**Platform.ts**:
+- Minor signature updates to implement Entity interface properly
 
-6. **`getPosition(): Vec2`**
-   - Return position (clone for safety)
+### Removed Functions
 
-7. **`getBounds(): { x: number; y: number; width: number; height: number }`**
-   - Return bounding box
+From **Game.ts**:
+- Debug rendering helpers (moved to DebugSystem)
+- FPS calculation logic (moved to FPSCounter)
+- Input command polling (moved to InputCommandHandler)
 
-### Modified Functions in Game:
+From **Player.ts**:
+- `getInputAcceleration()` - Replaced by InputController abstraction
 
-**File**: `src/core/Game.ts`
+## [Classes]
 
-1. **`initialize()`** (MODIFIED)
-   - Add platform array initialization
-   - Create several platforms at different positions
-   - Example: Staircase pattern or scattered platforms
+Detailed breakdown of new, modified, and removed classes.
 
-2. **`update(dt: number)`** (MODIFIED)
-   - After player update, check collisions with all platforms
-   - Use CollisionDetector to check player shape vs platform shapes
-   - If collision detected, call onCollision on both entities
-   - Apply collision response using CollisionResolver
+### New Classes
 
-3. **`render()`** (MODIFIED)
-   - Add platform rendering loop
-   - Render all platforms before or after player
+1. **DebugSystem** (src/systems/DebugSystem.ts)
+   - Purpose: Centralized debug visualization management
+   - Key Methods: toggle(), render(), isFeatureEnabled()
+   - Key Properties: config, features (Set<DebugFeature>)
+   - Dependencies: Renderer, debug types
 
-## Classes
+2. **HUDRenderer** (src/systems/HUDRenderer.ts)
+   - Purpose: UI/HUD rendering system
+   - Key Methods: render(), renderFPS(), renderInstructions(), renderPauseIndicator()
+   - Key Properties: config
+   - Dependencies: Renderer, UI types
 
-Detailed breakdown of new and modified classes.
+3. **FPSCounter** (src/systems/FPSCounter.ts)
+   - Purpose: FPS tracking and calculation
+   - Key Methods: update(), getFPS(), reset()
+   - Key Properties: frameCount, lastUpdate, currentFPS
+   - Dependencies: None
 
-### New Classes:
+4. **InputCommandHandler** (src/systems/InputCommandHandler.ts)
+   - Purpose: Maps keyboard input to game commands
+   - Key Methods: registerCommand(), update()
+   - Key Properties: commands (Map), lastExecutionTime (Map)
+   - Dependencies: InputManager
 
-1. **`CollisionDetector`** (`src/physics/CollisionDetector.ts`)
-   - Purpose: Static utility class for collision detection
-   - Design: Pure functions, no instance state
-   - Methods: All static collision detection algorithms
-   - Pattern: Similar to Vec2 static utilities
-   - Performance: Optional output parameters for zero-allocation
+5. **PhysicsSystem** (src/systems/PhysicsSystem.ts)
+   - Purpose: Physics simulation orchestration
+   - Key Methods: update(), applyGravity(), detectCollisions(), resolveCollisions()
+   - Key Properties: config (PhysicsConfig)
+   - Dependencies: Vec2, CollisionDetector, CollisionResolver, physics types
 
-2. **`CollisionResolver`** (`src/physics/CollisionResolver.ts`)
-   - Purpose: Static utility class for collision response
-   - Design: Pure functions operating on Collidable entities
-   - Methods: All static collision resolution algorithms
-   - Integrates: With Vec2 for vector math
-   - Handles: Velocity changes, position corrections, impulses
+6. **World** (src/core/World.ts)
+   - Purpose: Entity management and lifecycle
+   - Key Methods: addEntity(), removeEntity(), update(), render(), getCollidables()
+   - Key Properties: entities (Entity[]), platforms (Platform[])
+   - Dependencies: Entity types, Renderer
 
-3. **`Platform`** (`src/entities/Platform.ts`)
-   - Purpose: Represents a platform entity
-   - Implements: Collidable interface
-   - Properties: position (Vec2), width, height, color, material, type
-   - Methods: getCollisionShape(), getCollisionMaterial(), onCollision(), render()
-   - Design: Similar structure to Player class
-   - Extensibility: Type property allows for future specializations
+7. **KeyboardController** (src/input/KeyboardController.ts)
+   - Purpose: Keyboard input processing
+   - Key Methods: getMovementInput(), getJumpInput(), getActionInput()
+   - Key Properties: inputManager, config
+   - Dependencies: InputManager, InputController interface
 
-### Modified Classes:
+8. **AccelerometerController** (src/input/AccelerometerController.ts)
+   - Purpose: Accelerometer input processing
+   - Key Methods: getMovementInput(), getJumpInput(), getActionInput()
+   - Key Properties: inputManager, config
+   - Dependencies: InputManager, InputController interface
 
-1. **`Player`** (`src/core/Player.ts`)
+### Modified Classes
+
+1. **Game** (src/core/Game.ts)
    - Changes:
-     - Implement Collidable interface
-     - Add getCollisionShape() returning CircleShape
-     - Add getCollisionMaterial() returning restitution/friction
-     - Add onCollision() for collision response
-     - Add setVelocity() for external velocity changes
-     - Keep existing physics and rendering
-   - Integration: Works with collision system while maintaining existing behavior
+     - Add properties: debugSystem, hudRenderer, fpsCounter, inputCommandHandler, physicsSystem, world
+     - Remove properties: platforms, frameCount, lastFpsUpdate, currentFps, debugRaycasts
+     - Simplify initialize() to only create player
+     - Simplify update() to call system updates
+     - Simplify render() to call system renders
+     - Move platform initialization to World
+     - Move input command handling to InputCommandHandler
+   - Result: ~150 lines (from ~350)
 
-2. **`Game`** (`src/core/Game.ts`)
+2. **Player** (src/core/Player.ts)
    - Changes:
-     - Add platforms: Platform[] property
-     - Initialize platforms in initialize()
-     - Add collision detection loop in update()
-     - Add platform rendering in render()
-     - Coordinate collision system
-   - Remains: Main orchestrator, no major architectural changes
+     - Implement Entity and PhysicalEntity interfaces
+     - Change update() signature: remove inputManager and useAccelerometer params, add inputController
+     - Remove getInputAcceleration() method
+     - Add applyMovementForce() method
+     - Make getVelocity() public
+     - Add applyForce() method
+     - Update logic to use InputController
+   - Result: ~200 lines (from ~280)
 
-## Dependencies
+3. **Platform** (src/entities/Platform.ts)
+   - Changes:
+     - Explicitly implement Entity interface
+     - Ensure all Entity interface methods are present
+   - Result: Minimal changes, mainly type declarations
+
+### No Classes Removed
+
+All existing classes are preserved, just refactored.
+
+## [Dependencies]
 
 No new external dependencies required.
 
-### Existing Dependencies (unchanged):
-- TypeScript (^5.3.3) - for compilation
-- Vite (^7.1.11) - for bundling and dev server
-- @vitejs/plugin-basic-ssl (^2.1.0) - for HTTPS in dev mode
+All refactoring uses existing internal dependencies:
+- Vec2 utility class
+- Renderer for drawing
+- InputManager for input state
+- CollisionDetector and CollisionResolver for physics
+- Existing type definitions
 
-### Internal Dependencies (new imports):
-- `src/physics/CollisionDetector.ts` - imported by Game.ts
-- `src/physics/CollisionResolver.ts` - imported by Game.ts
-- `src/entities/Platform.ts` - imported by Game.ts
-- `src/types/collision.ts` - imported by Platform.ts, Player.ts, collision modules
+The refactoring creates new internal modules but requires no additional npm packages.
 
-## Testing
+## [Testing]
 
-Comprehensive testing approach for collision system.
+Testing strategy and validation approach for the refactored code.
 
-### Manual Testing Steps:
+### Manual Testing Steps
 
-1. **Platform Rendering**
-   - Verify platforms appear on screen at correct positions
-   - Check that platforms have correct size and color
-   - Test with different platform configurations
+**Phase 1 - System Extraction Verification**:
+1. Start game and verify it runs without errors
+2. Test FPS counter display (should match previous behavior)
+3. Test debug visualization toggle with 'R' key:
+   - Verify raycast lines appear/disappear
+   - Verify grounded status text appears/disappear
+4. Test pause functionality with 'P' key:
+   - Verify pause indicator appears
+   - Verify game stops updating but keeps rendering
+5. Test HUD instructions display:
+   - Verify control instructions appear correctly
+   - Verify they update based on input mode (keyboard/accelerometer)
 
-2. **Basic Collision Detection**
-   - Drop player onto platform from above
-   - Verify player stops on platform (doesn't fall through)
-   - Check that collision is detected accurately
+**Phase 2 - Input Controller Verification**:
+1. Test keyboard controls (WASD/Arrow keys):
+   - Player movement should be identical to before
+   - Verify acceleration and max speed feel the same
+2. Test accelerometer controls (mobile):
+   - Tilt device and verify player moves
+   - Verify tilt sensitivity matches previous behavior
+3. Test mode toggle with 'T' key:
+   - Verify switching between keyboard and accelerometer works
+   - Verify instructions update accordingly
 
-3. **Bounce Physics**
-   - Jump/fall onto platform
-   - Verify player bounces with correct restitution
-   - Test velocity preservation in bounce direction
+**Phase 3 - Physics System Verification**:
+1. Test player-platform collisions:
+   - Player should land on platforms correctly
+   - Verify bounce behavior matches previous behavior
+   - Test edge cases (corners, fast movement)
+2. Test gravity:
+   - Verify player falls at correct rate
+   - Verify acceleration feels identical
+3. Test boundary collisions:
+   - Verify player bounces off screen edges correctly
 
-4. **Edge Cases**
-   - Land on platform edge
-   - Approach platform from side
-   - Test with very small/large platforms
-   - Test with multiple platforms stacked
+**Phase 4 - Integration Testing**:
+1. Play game for extended period (2-3 minutes)
+2. Toggle all debug features multiple times
+3. Pause/resume multiple times
+4. Switch input modes multiple times
+5. Verify no memory leaks (check browser dev tools)
+6. Verify FPS remains stable (should stay near 60)
 
-5. **Performance**
-   - Add many platforms (10-20)
-   - Verify FPS stays at 60
-   - Check for any frame drops during collisions
+### Automated Testing (Future Enhancement)
 
-6. **Integration**
-   - Verify boundary collisions still work
-   - Check that keyboard controls work normally
-   - Test pause/resume during collision
-   - Verify accelerometer controls (if on mobile)
+While not implemented in this refactor, the new architecture makes automated testing easier:
 
-### Test Platform Configurations:
+**Unit Test Candidates**:
+- FPSCounter: test FPS calculation accuracy
+- InputCommandHandler: test debouncing logic
+- KeyboardController/AccelerometerController: test input mapping
+- PhysicsSystem: test gravity application and collision detection orchestration
 
-Create diverse platforms in Game.initialize():
-```typescript
-// Staircase pattern
-new Platform({ position: { x: 100, y: 500 }, width: 150, height: 20 })
-new Platform({ position: { x: 300, y: 400 }, width: 150, height: 20 })
-new Platform({ position: { x: 500, y: 300 }, width: 150, height: 20 })
+**Integration Test Candidates**:
+- World: test entity add/remove/update/render cycles
+- Game: test system initialization and orchestration
 
-// Wide base platform
-new Platform({ position: { x: 50, y: 600 }, width: 700, height: 30 })
+### Validation Criteria
 
-// Small platform (edge case)
-new Platform({ position: { x: 400, y: 250 }, width: 50, height: 15 })
-```
+**Success Criteria**:
+- [ ] Game runs without console errors
+- [ ] All controls work identically to before refactor
+- [ ] Debug visualization matches previous behavior
+- [ ] FPS remains stable at 60 FPS
+- [ ] No visual glitches or artifacts
+- [ ] Pause/resume works correctly
+- [ ] Mobile accelerometer controls work (if available)
+- [ ] Code is more maintainable (Game.ts reduced to ~150 lines)
+- [ ] Systems are independently testable
 
-### Debug Visualization (optional):
+## [Implementation Order]
 
-Add to Renderer for debugging:
-- Draw collision shapes (circles/rectangles) with different colors
-- Show collision normals as arrows
-- Display collision depth values
-- Highlight active collisions
+Logical sequence of changes to minimize conflicts and ensure successful integration.
 
-### Unit Testing (for future):
+### Phase 1: Extract Debug and UI Systems (Lowest Risk, Highest Impact)
 
-Although not part of initial implementation, design allows for:
-- Test individual collision detection algorithms
-- Mock Collidable objects for testing
-- Verify collision math accuracy
-- Test edge cases with known inputs/outputs
+**Step 1: Create FPSCounter**
+1. Create `src/systems/FPSCounter.ts`
+2. Move FPS tracking logic from Game.ts
+3. Update Game.ts to use FPSCounter
+4. Test: Verify FPS counter displays correctly
 
-## Implementation Order
+**Step 2: Create HUDRenderer**
+1. Create `src/types/ui.ts` (UI type definitions)
+2. Create `src/systems/HUDRenderer.ts`
+3. Move all UI rendering from Game.render() to HUDRenderer
+4. Update Game.ts to use HUDRenderer
+5. Test: Verify all UI elements display correctly
 
-Sequential steps to minimize conflicts and ensure successful integration.
+**Step 3: Create DebugSystem**
+1. Create `src/types/debug.ts` (Debug type definitions)
+2. Create `src/systems/DebugSystem.ts`
+3. Move debug visualization code from Game.ts to DebugSystem
+4. Update Game.ts to use DebugSystem
+5. Test: Verify debug visualizations work with 'R' key toggle
 
-1. **Create Type Definitions**
-   - Create `src/types/collision.ts` with all collision types
-   - Modify `src/types/index.ts` to add Platform types and export collision types
-   - Rationale: Types must exist before implementing classes that use them
+**Step 4: Create InputCommandHandler**
+1. Create `src/systems/InputCommandHandler.ts`
+2. Move input command handling from Game.update() to InputCommandHandler
+3. Register commands for pause, debug toggle, accelerometer toggle
+4. Update Game.ts to use InputCommandHandler
+5. Test: Verify all keyboard commands work (P, R, T keys)
 
-2. **Implement CollisionDetector**
-   - Create `src/physics/` directory
-   - Implement `src/physics/CollisionDetector.ts` with all detection algorithms
-   - Start with `circleVsRectangle()` (most critical for Player-Platform)
-   - Add `circleVsCircle()` for completeness
-   - Rationale: Detection algorithms are pure functions with no dependencies
+**Verification Point**: After Phase 1, Game.ts should be reduced to ~200-220 lines with cleaner separation. All functionality should work identically to before.
 
-3. **Implement Platform Entity**
-   - Create `src/entities/` directory
-   - Implement `src/entities/Platform.ts` class
-   - Implement Collidable interface
-   - Add rendering method
-   - Rationale: Need Platform before integrating with Game
+### Phase 2: Extract World and Physics Systems (Medium Risk)
 
-4. **Modify Player for Collidable Interface**
-   - Update `src/core/Player.ts` to implement Collidable
-   - Add `getCollisionShape()`, `getCollisionMaterial()`, `onCollision()`
-   - Add `setVelocity()` method
-   - Keep existing functionality intact
-   - Rationale: Player must be Collidable before Game can use collision system
+**Step 5: Create World**
+1. Create `src/types/world.ts` (Entity type definitions)
+2. Create `src/core/World.ts`
+3. Move platform array from Game.ts to World
+4. Update Player and Platform to implement Entity interface
+5. Update Game.ts to use World for entity management
+6. Test: Verify player and platforms render and update correctly
 
-5. **Implement CollisionResolver**
-   - Implement `src/physics/CollisionResolver.ts`
-   - Add collision response algorithms
-   - Use Vec2 for vector math
-   - Handle velocity and position changes
-   - Rationale: Need resolver before integrating collision responses
+**Step 6: Create PhysicsSystem**
+1. Create `src/types/physics.ts` (Physics type definitions)
+2. Create `src/systems/PhysicsSystem.ts`
+3. Move collision detection loop from Game.update() to PhysicsSystem
+4. Update Player to implement PhysicalEntity interface
+5. Update Game.ts to use PhysicsSystem
+6. Test: Verify collisions and physics work identically
 
-6. **Integrate Platforms into Game**
-   - Modify `src/core/Game.ts` to add platforms array
-   - Initialize platforms in `initialize()` method
-   - Add platform rendering in `render()` method
-   - Test rendering without collision first
-   - Rationale: Verify visual setup before adding collision logic
+**Verification Point**: After Phase 2, Game.ts should be ~150-170 lines. All game objects managed through World, all physics through PhysicsSystem.
 
-7. **Add Collision Detection to Game Loop**
-   - Modify Game `update()` method
-   - Add collision detection loop using CollisionDetector
-   - Log collisions initially for verification
-   - Don't apply responses yet
-   - Rationale: Verify detection works before adding response
+### Phase 3: Create Input Controller Abstraction (Medium Risk)
 
-8. **Add Collision Response**
-   - Call `onCollision()` methods when collisions detected
-   - Use CollisionResolver for complex responses
-   - Apply velocity and position changes
-   - Test bounce physics
-   - Rationale: Complete the collision system with responses
+**Step 7: Create InputController Interface and Implementations**
+1. Create `src/types/input.ts` (InputController type definitions)
+2. Create `src/input/` directory
+3. Create `src/input/InputController.ts` (interface file)
+4. Create `src/input/KeyboardController.ts`
+5. Create `src/input/AccelerometerController.ts`
+6. Test implementations independently
 
-9. **Tune and Test**
-   - Adjust restitution values for desired bounce feel
-   - Test various platform configurations
-   - Verify FPS remains stable
-   - Check edge cases
-   - Rationale: Polish the experience and ensure robustness
+**Step 8: Refactor Player to Use InputController**
+1. Update Player.update() signature to accept InputController
+2. Remove getInputAcceleration() method from Player
+3. Add applyMovementForce() method to Player
+4. Update Game.ts to create appropriate controller and pass to Player
+5. Test: Verify player movement works with both keyboard and accelerometer
 
-10. **Document and Finalize**
-    - Add code comments for complex algorithms
-    - Update architecture.md if needed
-    - Verify all TypeScript strict mode passes
-    - Test build process
-    - Rationale: Ensure maintainability and completeness
+**Verification Point**: After Phase 3, Player is decoupled from InputManager. Game.ts should be ~150 lines.
 
-## Performance Considerations
+### Phase 4: Final Integration and Testing (Low Risk)
 
-- **Zero-Allocation Patterns**: Use optional output parameters in CollisionDetector methods to reuse CollisionResult objects
-- **Early Exit**: Check bounding boxes before expensive collision calculations
-- **Spatial Partitioning**: Not needed initially with <20 platforms, but architecture allows future quadtree integration
-- **Vec2 Reuse**: Use mutable Vec2 operations in collision response to avoid allocations
-- **Fixed Timestep**: Collision detection runs at fixed 60 Hz, preventing inconsistencies
+**Step 9: Clean Up and Documentation**
+1. Update `src/types/index.ts` to export all new types
+2. Remove any dead code from Game.ts
+3. Add JSDoc comments to all new classes
+4. Update README.md with new architecture diagram
+5. Run full integration test suite
 
-## Future Extensibility
+**Step 10: Performance Verification**
+1. Profile game with Chrome DevTools
+2. Verify no performance regression
+3. Check for memory leaks
+4. Verify FPS stability over extended play session
 
-Architecture supports future features:
+**Final Verification**: Complete manual testing checklist from Testing section. Ensure all success criteria are met.
 
-### Moving Platforms:
-- Add velocity property to Platform
-- Update position in Platform.update() method
-- Collision system already supports dynamic objects
+### Rollback Strategy
 
-### Platform Types:
-- Use PlatformType enum to specialize behavior
-- WeakPlatform subclass: breaks after N collisions
-- PowerupPlatform subclass: gives player abilities on collision
-- onCollision() can have type-specific logic
+Each phase is independent and can be rolled back if issues occur:
+- **Phase 1**: Rollback individual systems (FPSCounter, HUDRenderer, etc.) independently
+- **Phase 2**: Rollback World and PhysicsSystem together
+- **Phase 3**: Rollback InputController changes in Player.ts
+- Git commits should be made after each step for easy rollback
 
-### Advanced Collision:
-- Add polygon collision shapes
-- Implement sweep tests for fast-moving objects
-- Add trigger volumes (collision without response)
+### Estimated Time
 
-### Spatial Partitioning:
-- Add Quadtree or Grid class in src/physics/
-- Update Game to use spatial structure
-- Optimize for hundreds of entities
+- Phase 1: 2-3 hours (4 steps)
+- Phase 2: 2-3 hours (2 steps)
+- Phase 3: 2-3 hours (2 steps)
+- Phase 4: 1-2 hours (2 steps)
+- **Total**: 7-11 hours of development time
 
-### Multiple Collision Layers:
-- Add layer/mask system to Collidable
-- Filter collisions by layer
-- Support player-enemy, player-bullet, etc.
+### Success Metrics
+
+- Game.ts reduced from ~350 lines to ~150 lines
+- Each system is <150 lines and has single responsibility
+- Zero functional regressions
+- FPS remains stable at 60
+- Code is more maintainable and extensible

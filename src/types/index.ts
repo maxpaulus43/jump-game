@@ -132,3 +132,5 @@ export interface PlatformConfig {
 
 // Re-export collision types
 export * from './collision.js';
+export * from './debug.js';
+export * from './ui.js';

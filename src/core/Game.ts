@@ -2,9 +2,18 @@ import { GameLoop } from './GameLoop.js';
 import { Renderer } from './Renderer.js';
 import { InputManager } from './InputManager.js';
 import { Player } from './Player.js';
+import { World } from './World.js';
 import { Platform } from '../entities/Platform.js';
-import { CollisionDetector } from '../physics/CollisionDetector.js';
-import { CollisionResolver } from '../physics/CollisionResolver.js';
+import { Vec2 } from '../utils/Vec2.js';
+import { FPSCounter } from '../systems/FPSCounter.js';
+import { HUDRenderer } from '../systems/HUDRenderer.js';
+import { DebugSystem } from '../systems/DebugSystem.js';
+import { InputCommandHandler } from '../systems/InputCommandHandler.js';
+import { PhysicsSystem } from '../systems/PhysicsSystem.js';
+import { KeyboardController } from '../input/KeyboardController.js';
+import { AccelerometerController } from '../input/AccelerometerController.js';
+import type { InputController } from '../types/input.js';
+import { DebugFeature, DebugData, UIGameState } from '../types/index.js';
 
 /**
  * Game class orchestrates all game systems
@@ -16,19 +25,23 @@ export class Game {
   public readonly inputManager: InputManager;
   public readonly canvas: HTMLCanvasElement;
   private player: Player = new Player();
-  private platforms: Platform[] = [];
+  private world: World;
 
-  // FPS tracking
-  private frameCount: number;
-  private lastFpsUpdate: number;
-  private currentFps: number;
+  // Systems
+  private fpsCounter: FPSCounter;
+  private hudRenderer: HUDRenderer;
+  private debugSystem: DebugSystem;
+  private inputCommandHandler: InputCommandHandler;
+  private physicsSystem: PhysicsSystem;
+
+  // Input controllers
+  private keyboardController: KeyboardController;
+  private accelerometerController: AccelerometerController;
+  private activeController: InputController;
 
   // Mobile controls
   private useAccelerometer: boolean;
   private showPermissionButton: boolean;
-
-  // Debug visualization
-  private debugRaycasts: boolean = true;
 
   constructor(canvasId: string) {
     // Get canvas element
@@ -49,10 +62,35 @@ export class Game {
       maxDeltaTime: 0.25 // Prevent spiral of death
     });
 
-    // FPS tracking
-    this.frameCount = 0;
-    this.lastFpsUpdate = performance.now();
-    this.currentFps = 0;
+    // Initialize world
+    this.world = new World();
+
+    // Initialize systems
+    this.fpsCounter = new FPSCounter();
+    this.hudRenderer = new HUDRenderer();
+    this.debugSystem = new DebugSystem();
+    this.inputCommandHandler = new InputCommandHandler(this.inputManager);
+    this.physicsSystem = new PhysicsSystem({
+      gravity: new Vec2(0, 0), // Gravity handled by player for now
+      enableCollisions: true
+    });
+
+    // Register input commands
+    this.inputCommandHandler.registerCommand('p', () => {
+      if (this.gameLoop.isPaused()) {
+        this.resume();
+      } else {
+        this.pause();
+      }
+    });
+
+    this.inputCommandHandler.registerCommand('r', () => {
+      this.debugSystem.toggle(DebugFeature.Raycasts);
+    });
+
+    this.inputCommandHandler.registerCommand('t', () => {
+      this.toggleAccelerometer();
+    });
 
     // Mobile controls
     this.useAccelerometer = false;
@@ -77,47 +115,61 @@ export class Game {
       color: '#ffbf00ff'
     });
 
-    // Initialize platforms
-    this.platforms = [
-      // Bottom platform (ground)
-      new Platform({
-        position: { x: 50, y: context.height - 50 },
-        width: context.width - 100,
-        height: 30,
-        material: { restitution: 0.3, friction: 0.5 }
-      }),
+    // Initialize platforms and add them to world
+    // Bottom platform (ground)
+    this.world.addEntity(new Platform({
+      position: { x: 50, y: context.height - 50 },
+      width: context.width - 100,
+      height: 30,
+      material: { restitution: 0.3, friction: 0.5 }
+    }));
 
-      // Staircase pattern
-      new Platform({
-        position: { x: 100, y: context.height - 150 },
-        width: 150,
-        height: 20
-      }),
-      new Platform({
-        position: { x: 300, y: context.height - 250 },
-        width: 150,
-        height: 20
-      }),
-      new Platform({
-        position: { x: 500, y: context.height - 350 },
-        width: 150,
-        height: 20
-      }),
+    // Staircase pattern
+    this.world.addEntity(new Platform({
+      position: { x: 100, y: context.height - 150 },
+      width: 150,
+      height: 20
+    }));
+    this.world.addEntity(new Platform({
+      position: { x: 300, y: context.height - 250 },
+      width: 150,
+      height: 20
+    }));
+    this.world.addEntity(new Platform({
+      position: { x: 500, y: context.height - 350 },
+      width: 150,
+      height: 20
+    }));
 
-      // Floating platforms in middle
-      new Platform({
-        position: { x: context.width / 2 - 100, y: context.height / 2 },
-        width: 200,
-        height: 20
-      }),
+    // Floating platforms in middle
+    this.world.addEntity(new Platform({
+      position: { x: context.width / 2 - 100, y: context.height / 2 },
+      width: 200,
+      height: 20
+    }));
 
-      // Small platform (edge case testing)
-      new Platform({
-        position: { x: context.width - 200, y: context.height - 200 },
-        width: 80,
-        height: 15
-      })
-    ];
+    // Small platform (edge case testing)
+    this.world.addEntity(new Platform({
+      position: { x: context.width - 200, y: context.height - 200 },
+      width: 80,
+      height: 15
+    }));
+
+    // Initialize input controllers
+    this.keyboardController = new KeyboardController(this.inputManager, {
+      acceleration: 1200,
+      upKeys: ['w', 'ArrowUp'],
+      downKeys: ['s', 'ArrowDown'],
+      leftKeys: ['a', 'ArrowLeft'],
+      rightKeys: ['d', 'ArrowRight'],
+      jumpKeys: [' ', 'Space']
+    });
+
+    this.accelerometerController = new AccelerometerController(this.inputManager, {
+      acceleration: 1200,
+      sensitivity: 1.0,
+      deadZone: 0.1
+    });
 
     // Check if motion sensors are available and request permission if needed
     if (this.inputManager.hasMotionSensors()) {
@@ -128,6 +180,11 @@ export class Game {
         this.useAccelerometer = true;
       }
     }
+
+    // Set initial active controller based on device capabilities
+    this.activeController = this.useAccelerometer 
+      ? this.accelerometerController 
+      : this.keyboardController;
   }
 
   /**
@@ -152,6 +209,11 @@ export class Game {
   toggleAccelerometer(): void {
     if (this.inputManager.hasMotionSensors() && this.inputManager.hasMotionPermission()) {
       this.useAccelerometer = !this.useAccelerometer;
+      
+      // Switch active controller reference
+      this.activeController = this.useAccelerometer
+        ? this.accelerometerController
+        : this.keyboardController;
     }
   }
 
@@ -193,225 +255,84 @@ export class Game {
    * @param dt - Fixed delta time in seconds
    */
   private update(dt: number): void {
+    // Handle input commands (pause, debug toggle, etc.)
+    this.inputCommandHandler.update();
+
     // Update player
     const context = this.renderer.getContext();
 
     this.player.update(
       dt,
-      this.inputManager,
-      this.useAccelerometer,
+      this.activeController,
       { width: context.width, height: context.height }
     );
 
+    // Get platforms from world for ground detection
+    const platforms = this.world.getPlatforms();
+    
     // Raycast ground detection (demonstrates raycast usage)
-    this.player.checkGrounded(this.platforms);
+    this.player.checkGrounded(platforms as any[]);
 
-    // Check collisions between player and platforms
-    for (const platform of this.platforms) {
-      const playerShape = this.player.getCollisionShape();
-      const platformShape = platform.getCollisionShape();
-
-      const collisionResult = CollisionDetector.checkCollision(
-        playerShape,
-        platformShape
-      );
-
-      if (collisionResult.colliding) {
-        // Resolve collision using CollisionResolver
-        CollisionResolver.resolveCollision(this.player, platform, collisionResult);
-      }
-    }
-
-    // Toggle debug visualization with R key
-    if (this.inputManager.isKeyPressed('r')) {
-      this.debugRaycasts = !this.debugRaycasts;
-      // Small delay to prevent rapid toggling
-      setTimeout(() => { }, 200);
-    }
-
-    // Pause/unpause with P key
-    if (this.inputManager.isKeyPressed('p')) {
-      if (this.gameLoop.isPaused()) {
-        this.resume();
-      } else {
-        this.pause();
-      }
-      // Small delay to prevent rapid toggling
-      setTimeout(() => { }, 200);
-    }
-
-    // Toggle accelerometer with T key
-    if (this.inputManager.isKeyPressed('t')) {
-      this.toggleAccelerometer();
-      // Small delay to prevent rapid toggling
-      setTimeout(() => { }, 200);
-    }
+    // Use PhysicsSystem to handle collisions
+    // Get collidables (player is not in world, so add manually)
+    const collidables = [this.player, ...this.world.getCollidables()];
+    this.physicsSystem.update(dt, [], collidables);
   }
 
   /**
    * Render current frame
    */
   private render(): void {
-    // Get rendering context
-    const context = this.renderer.getContext();
+    // Update FPS counter
+    this.fpsCounter.update();
 
     // Clear canvas
     this.renderer.clear();
-
-    // Fill background
     this.renderer.fillBackground('#1a1a2e');
 
-    // Draw platforms
-    for (const platform of this.platforms) {
-      platform.render(this.renderer);
-    }
+    // Draw all entities in world (platforms)
+    this.world.render(this.renderer);
 
     // Draw player
     this.player.render(this.renderer);
 
-    // Debug: Draw raycast visualization
-    // TODO make an entire Debug object responsible for updating and rendering debug elements
-    if (this.debugRaycasts) {
+    // Render debug visualizations
+    if (this.debugSystem.isEnabled()) {
       const playerPos = this.player.getPosition();
       const playerRadius = this.player.getRadius();
       const raycastResult = this.player.getGroundRaycastResult();
 
-      // Draw ground detection ray
-      this.renderer.drawRay(
-        playerPos.x,
-        playerPos.y,
-        0,  // direction X
-        1,  // direction Y (downward)
-        playerRadius + 5,  // maxDistance
-        this.player.getIsGrounded() ? '#00ff00' : '#ff00ff',  // Green if grounded, magenta if not
-        2
-      );
+      const debugData: DebugData = {
+        entities: [{
+          position: { x: playerPos.x, y: playerPos.y },
+          radius: playerRadius,
+          isGrounded: this.player.getIsGrounded()
+        }],
+        raycasts: [{
+          origin: { x: playerPos.x, y: playerPos.y },
+          direction: { x: 0, y: 1 },
+          maxDistance: playerRadius + 5,
+          result: raycastResult,
+          color: this.player.getIsGrounded() ? '#00ff00' : '#ff00ff'
+        }],
+        fps: this.fpsCounter.getFPS()
+      };
 
-      // If ray hit something, draw hit point and normal
-      if (raycastResult.hit) {
-        this.renderer.drawRaycastHit(
-          raycastResult.point.x,
-          raycastResult.point.y,
-          raycastResult.normal.x,
-          raycastResult.normal.y,
-          '#00ff00',
-          20
-        );
-      }
-
-      // Draw grounded status
-      this.renderer.drawText(
-        `Grounded: ${this.player.getIsGrounded() ? 'YES' : 'NO'}`,
-        10,
-        context.height - 30,
-        this.player.getIsGrounded() ? '#00ff00' : '#ff0000',
-        '16px monospace'
-      );
+      this.debugSystem.render(this.renderer, debugData);
     }
 
-    // Update FPS counter
-    this.frameCount++;
-    const now = performance.now();
-    if (now - this.lastFpsUpdate >= 1000) {
-      this.currentFps = Math.round((this.frameCount * 1000) / (now - this.lastFpsUpdate));
-      this.frameCount = 0;
-      this.lastFpsUpdate = now;
-    }
+    // Render HUD/UI
+    const uiState: UIGameState = {
+      fps: this.fpsCounter.getFPS(),
+      paused: this.gameLoop.isPaused(),
+      useAccelerometer: this.useAccelerometer,
+      showPermissionPrompt: this.showPermissionButton,
+      debugEnabled: this.debugSystem.isFeatureEnabled(DebugFeature.Raycasts),
+      hasMotionSensors: this.inputManager.hasMotionSensors(),
+      hasMotionPermission: this.inputManager.hasMotionPermission()
+    };
 
-    // Draw FPS counter
-    this.renderer.drawText(
-      `FPS: ${this.currentFps}`,
-      10,
-      30,
-      '#ffffff',
-      '20px monospace'
-    );
-
-    // Draw instructions
-    let instructionY = 60;
-
-    if (this.useAccelerometer) {
-      this.renderer.drawText(
-        'Tilt device to move',
-        10,
-        instructionY,
-        '#00ff88',
-        '16px monospace'
-      );
-      instructionY += 25;
-
-      if (this.inputManager.hasMotionSensors()) {
-        this.renderer.drawText(
-          'Press T to use keyboard',
-          10,
-          instructionY,
-          '#aaaaaa',
-          '14px monospace'
-        );
-        instructionY += 25;
-      }
-    } else {
-      this.renderer.drawText(
-        'Use WASD or Arrow Keys to move',
-        10,
-        instructionY,
-        '#aaaaaa',
-        '16px monospace'
-      );
-      instructionY += 25;
-
-      if (this.inputManager.hasMotionSensors() && this.inputManager.hasMotionPermission()) {
-        this.renderer.drawText(
-          'Press T to use accelerometer',
-          10,
-          instructionY,
-          '#aaaaaa',
-          '14px monospace'
-        );
-        instructionY += 25;
-      }
-    }
-
-    this.renderer.drawText(
-      'Press P to pause/resume',
-      10,
-      instructionY,
-      '#aaaaaa',
-      '16px monospace'
-    );
-    instructionY += 25;
-
-    this.renderer.drawText(
-      `Press R to ${this.debugRaycasts ? 'hide' : 'show'} raycast debug`,
-      10,
-      instructionY,
-      '#aaaaaa',
-      '14px monospace'
-    );
-
-    // Show permission button message if needed
-    if (this.showPermissionButton) {
-      const context = this.renderer.getContext();
-      this.renderer.drawText(
-        'Tap screen to enable tilt controls',
-        context.width / 2 - 150,
-        context.height - 50,
-        '#ffaa00',
-        'bold 16px monospace'
-      );
-    }
-
-    // Draw pause indicator
-    if (this.gameLoop.isPaused()) {
-      const context = this.renderer.getContext();
-      this.renderer.drawText(
-        'PAUSED',
-        context.width / 2 - 50,
-        context.height / 2,
-        '#ff0000',
-        'bold 32px monospace'
-      );
-    }
+    this.hudRenderer.render(this.renderer, uiState);
   }
 
   /**

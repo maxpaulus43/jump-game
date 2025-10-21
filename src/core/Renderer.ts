@@ -7,8 +7,8 @@ import type { RenderContext } from '../types/index.js';
 export class Renderer {
   public readonly canvas: HTMLCanvasElement;
   public readonly ctx: CanvasRenderingContext2D;
-  public readonly width: number;
-  public readonly height: number;
+  public width: number;
+  public height: number;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;

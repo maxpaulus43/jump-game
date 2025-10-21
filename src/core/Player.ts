@@ -1,6 +1,6 @@
 import { Vec2 } from '../utils/Vec2.js';
 import type { Renderer } from './Renderer.js';
-import type { InputManager } from './InputManager.js';
+import type { InputController } from '../types/input.js';
 import { CollisionShapeType } from '../types/index.js';
 import type {
   Collidable,
@@ -66,18 +66,16 @@ export class Player implements Collidable {
   /**
    * Update player state for one physics step
    * @param dt - Delta time in seconds
-   * @param inputManager - Input manager for reading controls
-   * @param useAccelerometer - Whether to use accelerometer input
+   * @param inputController - Input controller for reading controls
    * @param bounds - World boundaries for collision
    */
   update(
     dt: number,
-    inputManager: InputManager,
-    useAccelerometer: boolean,
+    inputController: InputController,
     bounds: { width: number; height: number }
   ): void {
-    // Calculate acceleration from input
-    const inputAccel: Vec2 = this.getInputAcceleration(inputManager, useAccelerometer);
+    // Get acceleration from input controller
+    const inputAccel: Vec2 = inputController.getMovementInput();
 
     // Update velocity with input acceleration (x axis) and gravity (y axis)
     this.velocity.x += inputAccel.x * dt;
@@ -89,41 +87,6 @@ export class Player implements Collidable {
 
     // Handle boundary collisions with bouncing
     this.handleBoundaryCollisions(bounds);
-  }
-
-  /**
-   * Get input acceleration from keyboard or accelerometer
-   */
-  private getInputAcceleration(inputManager: InputManager, useAccelerometer: boolean): Vec2 {
-    const inputAccel = new Vec2(0, 0);
-
-    // Use accelerometer if enabled, otherwise use keyboard
-    if (useAccelerometer && inputManager.hasMotionPermission()) {
-      // Get tilt vector from accelerometer
-      const tilt = inputManager.getTiltVector();
-      inputAccel.x = tilt.x * this.acceleration;
-      inputAccel.y = tilt.y * this.acceleration;
-    } else {
-      // WASD or Arrow keys apply acceleration forces
-      if (inputManager.isKeyPressed('w') || inputManager.isKeyPressed('ArrowUp')) {
-        inputAccel.y -= this.acceleration;
-      }
-      if (inputManager.isKeyPressed('s') || inputManager.isKeyPressed('ArrowDown')) {
-        inputAccel.y += this.acceleration;
-      }
-      if (inputManager.isKeyPressed('a') || inputManager.isKeyPressed('ArrowLeft')) {
-        inputAccel.x -= this.acceleration;
-      }
-      if (inputManager.isKeyPressed('d') || inputManager.isKeyPressed('ArrowRight')) {
-        inputAccel.x += this.acceleration;
-      }
-      if (inputManager.isKeyPressed(' ')) {
-        // Spacebar resets velocity
-        this.velocity.y += this.acceleration;
-      }
-    }
-
-    return inputAccel;
   }
 
   /**
@@ -280,5 +243,24 @@ export class Player implements Collidable {
    */
   getRadius(): number {
     return this.radius;
+  }
+
+  /**
+   * Get player velocity (PhysicalEntity interface)
+   * 
+   * @returns Velocity vector (cloned for safety)
+   */
+  getVelocity(): Vec2 {
+    return this.velocity.clone();
+  }
+
+  /**
+   * Apply force to player (PhysicalEntity interface)
+   * This adds to the velocity - useful for explosions, knockback, etc.
+   * 
+   * @param force - Force vector to apply
+   */
+  applyForce(force: Vec2): void {
+    this.velocity.add(force);
   }
 }
