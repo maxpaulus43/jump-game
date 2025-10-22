@@ -161,6 +161,42 @@ export class Enemy {
 - ES2020+ JavaScript features
 - requestAnimationFrame API
 
+## Deployment
+
+This game is configured for deployment on AWS Amplify with automatic continuous deployment from Git.
+
+### Quick Deploy to AWS Amplify
+
+1. Push your code to a Git repository (GitHub, GitLab, or Bitbucket)
+2. Log into [AWS Amplify Console](https://console.aws.amazon.com/amplify/)
+3. Click "New app" → "Host web app"
+4. Connect your Git repository
+5. Amplify will automatically detect the `amplify.yml` configuration
+6. Click "Save and deploy"
+
+Your game will be live at a URL like: `https://main.d1234567890.amplifyapp.com`
+
+### Detailed Deployment Guide
+
+See [docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md) for:
+- Step-by-step AWS console setup
+- Custom domain configuration
+- Environment variables
+- Branch deployments
+- Troubleshooting tips
+- Cost estimates
+
+### Local Preview
+
+Test the production build locally before deploying:
+
+```bash
+npm run build
+npm run preview
+```
+
+Visit `https://localhost:4173` to see the production build.
+
 ## Future Enhancements
 
 - Entity component system (ECS)

@@ -3,3 +3,8 @@ node_modules/
 dist/
 **/*.js
 **/*.js.map
+
+# Amplify
+.amplify-hosting/
+amplify_outputs.json
+.amplifyrc

@@ -36,7 +36,6 @@ export class Player implements Collidable {
   private radius: number;
   private gravity: number;
   private restitution: number;
-  private acceleration: number;
   private color: string;
   private jumpVelocity: number = 1500;
   private isGrounded: boolean = false;
@@ -60,7 +59,6 @@ export class Player implements Collidable {
     this.radius = config.radius || 20;
     this.gravity = config.gravity || 1500;
     this.restitution = config.restitution || 1.0;
-    this.acceleration = config.acceleration || 1200;
     this.color = config.color || '#00ff88';
   }
 
@@ -172,7 +170,7 @@ export class Player implements Collidable {
    * @param other - The other collidable entity
    * @param result - Collision result data
    */
-  onCollision(other: Collidable, result: CollisionResult): void {
+  onCollision(_other: Collidable, result: CollisionResult): void {
     // Only apply bounce if hitting from above (normal pointing up)
     // This prevents sticking to sides/bottom of platforms
     if (result.normal.y < -0.5) {

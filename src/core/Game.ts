@@ -2,7 +2,6 @@ import { GameLoop } from './GameLoop.js';
 import { InputManager } from '../systems/input/InputManager.js';
 import { Player } from './Player.js';
 import { World } from './World.js';
-import { Platform } from '../entities/Platform.js';
 import { Vec2 } from '../utils/Vec2.js';
 import { FPSCounter } from '../systems/FPSCounter.js';
 import { HUD } from '../systems/HUD.js';
@@ -159,53 +158,53 @@ export class Game {
     this.accelerometerController = new AccelerometerController(this.inputManager, {
       acceleration: 800,  // Velocity magnitude (pixels/second) for direct control
       sensitivity: 2.5,   // Increased sensitivity for more responsive tilt
-      deadZone: 0.08      // Slightly reduced dead zone for better responsiveness
+      deadZone: 0.0      // Slightly reduced dead zone for better responsiveness
     });
 
     // Set initial active controller based on device capabilities
     this.activeController = this.inputManager.hasMotionPermission()
       ? this.accelerometerController
       : this.keyboardController;
-    
+
     // Initialize touch buttons
     this.initializeTouchButtons();
   }
-  
+
   /**
    * Initialize touch button UI system
    */
   private initializeTouchButtons(): void {
     const w = this.renderer.getWidth();
     const h = this.renderer.getHeight();
-    
+
     // Create touch button manager with auto-hide enabled
     this.touchButtonManager = new TouchButtonManager({
       enableAutoHide: true,
       hideButtonsDelay: 3000,
       fadeOutDuration: 500
     });
-    
+
     // Create buttons
     const pauseBtn = ButtonFactory.createPauseButton(
       { x: 60, y: h - 60 },
       () => this.pause()
     );
-    
+
     const resumeBtn = ButtonFactory.createResumeButton(
       { x: 60, y: h - 60 },
       () => this.resume()
     );
-    
+
     const restartBtn = ButtonFactory.createRestartButton(
       { x: w / 2, y: h - 80 },
       () => this.restart()
     );
-    
+
     const debugBtn = ButtonFactory.createDebugToggleButton(
       { x: w - 60, y: h - 60 },
       () => this.debugSystem.toggle(DebugFeature.Raycasts)
     );
-    
+
     // Only create accelerometer toggle if device has motion sensors
     if (this.inputManager.hasMotionSensors()) {
       const accelToggleBtn = ButtonFactory.createAccelerometerToggleButton(
@@ -214,22 +213,22 @@ export class Game {
       );
       this.touchButtonManager.addButton(accelToggleBtn);
     }
-    
+
     // Add buttons to manager
     this.touchButtonManager.addButton(pauseBtn);
     this.touchButtonManager.addButton(resumeBtn);
     this.touchButtonManager.addButton(restartBtn);
     this.touchButtonManager.addButton(debugBtn);
-    
+
     // Create visibility groups
     this.touchButtonManager.createGroup('gameplay', ['pause', 'debug']);
     this.touchButtonManager.createGroup('paused', ['resume', 'debug']);
     this.touchButtonManager.createGroup('gameOver', ['restart']);
-    
+
     // Show initial group
     this.updateButtonVisibility();
   }
-  
+
   /**
    * Update button visibility based on game state
    */
@@ -347,11 +346,11 @@ export class Game {
       // Release all button presses when no touches active
       this.touchButtonManager.handleAllTouchesEnd();
     }
-    
+
     // Update button manager with frame time estimate (runs even when paused)
     // Using fixed 16.67ms (60 FPS) since we don't have dt in render
     this.touchButtonManager.update(1 / 60);
-    
+
     // Update FPS counter
     this.fpsCounter.update();
 
@@ -413,7 +412,7 @@ export class Game {
     };
 
     this.hud.render(this.renderer, uiState);
-    
+
     // Render touch buttons (last, on top of everything)
     this.touchButtonManager.render(this.renderer);
   }
@@ -426,7 +425,7 @@ export class Game {
   private checkGameOver(): boolean {
     const playerY = this.player.getPosition().y;
     const cameraBottom = this.camera.getPosition().y + this.renderer.getHeight();
-    
+
     // Player fell below camera view
     return playerY > cameraBottom;
   }
@@ -445,10 +444,10 @@ export class Game {
    */
   private restart(): void {
     console.log('Restarting game...');
-    
+
     // Reset score system (keeps high score)
     this.scoreSystem.reset();
-    
+
     // Reinitialize game state
     this.initialize();
   }

@@ -7,7 +7,6 @@
 
 import { Platform } from '../entities/Platform.js';
 import { World } from '../core/World.js';
-import { Vec2 } from '../utils/Vec2.js';
 import type { PlatformConfig } from '../types/index.js';
 
 /**

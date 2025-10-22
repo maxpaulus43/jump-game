@@ -6,7 +6,7 @@
  */
 
 import { Vec2 } from '../../utils/Vec2.js';
-import { Entity, PhysicalEntity } from '../../types/world.js';
+import type { Entity } from '../../types/world.js';
 import { Collidable } from '../../types/collision.js';
 import { PhysicsConfig, PhysicsResult, CollisionPair } from '../../types/physics.js';
 import { CollisionDetector } from './CollisionDetector.js';

@@ -30,7 +30,7 @@ export class HTMLCanvasRenderer implements Renderer {
     window.addEventListener('resize', () => this.resize());
   }
 
-  drawSprite(sprite: Sprite, x: number, y: number, width: number, height: number): void {
+  drawSprite(_sprite: Sprite, _x: number, _y: number, _width: number, _height: number): void {
     throw new Error('Method not implemented.');
   }
 

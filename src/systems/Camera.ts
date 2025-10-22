@@ -13,7 +13,6 @@ export class Camera implements ICamera {
   private followThreshold: number;
   private isActive: boolean;
   private bounds: CameraBounds | null;
-  private screenHeight: number;
   private enabled: boolean;
 
   /**
@@ -28,7 +27,6 @@ export class Camera implements ICamera {
     this.enabled = config.enabled ?? true;
     this.isActive = false;
     this.bounds = null;
-    this.screenHeight = screenHeight;
   }
 
   /**
@@ -36,7 +34,7 @@ export class Camera implements ICamera {
    * @param dt Delta time (not used for lerp but kept for API consistency)
    * @param targetY Target Y position in world space
    */
-  update(dt: number, targetY: number): void {
+  update(_dt: number, targetY: number): void {
     if (!this.enabled) {
       return;
     }
