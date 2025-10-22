@@ -13,4 +13,5 @@ export interface Renderer {
     fillBackground(color: string): void;
     drawRay(originX: number, originY: number, directionX: number, directionY: number, maxDistance: number, color?: string, lineWidth?: number): void;
     drawRaycastHit(hitX: number, hitY: number, normalX: number, normalY: number, color?: string, normalLength?: number): void;
+    getCanvasContext(): CanvasRenderingContext2D;
 }

@@ -38,7 +38,7 @@ export class Player implements Collidable {
   private restitution: number;
   private acceleration: number;
   private color: string;
-  private jumpVelocity: number = 1000;
+  private jumpVelocity: number = 1500;
   private isGrounded: boolean = false;
 
   // Reusable raycast result (zero-allocation pattern)
@@ -56,7 +56,7 @@ export class Player implements Collidable {
     this.position = config.position
       ? new Vec2(config.position.x, config.position.y)
       : new Vec2(0, 0);
-    this.velocity = new Vec2(0, 0);
+    this.velocity = new Vec2(0, -this.jumpVelocity);
     this.radius = config.radius || 20;
     this.gravity = config.gravity || 1500;
     this.restitution = config.restitution || 1.0;
@@ -106,13 +106,13 @@ export class Player implements Collidable {
     }
 
     // Top and bottom boundaries
-    if (this.position.y - this.radius < 0) {
-      this.position.y = this.radius;
-      this.velocity.y = Math.abs(this.velocity.y) * this.restitution;
-    } else if (this.position.y + this.radius > bounds.height) {
-      this.position.y = bounds.height - this.radius;
-      this.velocity.y = -this.jumpVelocity;
-    }
+    // if (this.position.y - this.radius < 0) {
+    //   this.position.y = this.radius;
+    //   this.velocity.y = Math.abs(this.velocity.y) * this.restitution;
+    // } else if (this.position.y + this.radius > bounds.height) {
+    //   this.position.y = bounds.height - this.radius;
+    //   this.velocity.y = -this.jumpVelocity;
+    // }
   }
 
   /**

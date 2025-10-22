@@ -134,3 +134,4 @@ export interface PlatformConfig {
 export * from './collision.js';
 export * from './debug.js';
 export * from './ui.js';
+export * from './camera.js';

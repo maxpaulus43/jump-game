@@ -15,6 +15,10 @@ export interface UIGameState {
   debugEnabled: boolean;
   hasMotionSensors: boolean;
   hasMotionPermission: boolean;
+  score: number;
+  highScore: number;
+  gameOver: boolean;
+  isNewHighScore: boolean;
 }
 
 /**

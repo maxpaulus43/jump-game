@@ -11,6 +11,9 @@ import { InputCommandHandler } from '../systems/input/InputCommandHandler.js';
 import { PhysicsSystem } from '../systems/physics/PhysicsSystem.js';
 import { KeyboardController } from '../systems/input/KeyboardController.js';
 import { AccelerometerController } from '../systems/input/AccelerometerController.js';
+import { Camera } from '../systems/Camera.js';
+import { PlatformSpawner } from '../systems/PlatformSpawner.js';
+import { ScoreSystem } from '../systems/ScoreSystem.js';
 import type { InputController } from '../types/input.js';
 import { DebugFeature, DebugData, UIGameState } from '../types/index.js';
 import { Renderer } from '../types/renderer.js';
@@ -27,16 +30,22 @@ export class Game {
   private world: World;
 
   // Systems
+  private camera!: Camera;
   private fpsCounter: FPSCounter;
   private hud: HUD;
   private debugSystem: DebugSystem;
   private inputCommandHandler: InputCommandHandler;
   private physicsSystem: PhysicsSystem;
+  private platformSpawner!: PlatformSpawner;
+  private scoreSystem: ScoreSystem;
 
   // Input controllers
-  private keyboardController: KeyboardController;
-  private accelerometerController: AccelerometerController;
-  private activeController: InputController;
+  private keyboardController!: KeyboardController;
+  private accelerometerController!: AccelerometerController;
+  private activeController!: InputController;
+
+  // Game state
+  private gameOver: boolean = false;
 
   // Mobile controls
   private showPermissionButton: boolean;
@@ -62,6 +71,7 @@ export class Game {
       gravity: new Vec2(0, 0), // Gravity handled by player for now
       enableCollisions: true
     });
+    this.scoreSystem = new ScoreSystem();
 
     // Register input commands
     this.inputCommandHandler.registerCommand('p', () => {
@@ -73,7 +83,11 @@ export class Game {
     });
 
     this.inputCommandHandler.registerCommand('r', () => {
-      this.debugSystem.toggle(DebugFeature.Raycasts);
+      if (this.gameOver) {
+        this.restart();
+      } else {
+        this.debugSystem.toggle(DebugFeature.Raycasts);
+      }
     });
 
     this.inputCommandHandler.registerCommand('t', () => {
@@ -94,6 +108,13 @@ export class Game {
     const w = this.renderer.getWidth();
     const h = this.renderer.getHeight();
 
+    // Initialize camera with smooth following
+    this.camera = new Camera({
+      smoothing: 0.1,
+      followThreshold: h / 2,
+      enabled: true
+    }, h);
+
     this.player = new Player({
       position: { x: w / 2, y: h / 2 },
       radius: 20,
@@ -104,45 +125,23 @@ export class Game {
       color: '#ffbf00ff'
     });
 
-    // Initialize platforms and add them to world
-    // Bottom platform (ground)
-    this.world.addEntity(new Platform({
-      position: { x: 50, y: h - 50 },
-      width: w - 100,
-      height: 30,
-      material: { restitution: 0.3, friction: 0.5 }
-    }));
+    // Initialize platform spawner
+    this.platformSpawner = new PlatformSpawner({
+      worldWidth: w,
+      spawnDistance: 800,
+      despawnDistance: 1000,
+      initialPlatformCount: 8
+    });
 
-    // Staircase pattern
-    this.world.addEntity(new Platform({
-      position: { x: 100, y: h - 150 },
-      width: 150,
-      height: 20
-    }));
-    this.world.addEntity(new Platform({
-      position: { x: 300, y: h - 250 },
-      width: 150,
-      height: 20
-    }));
-    this.world.addEntity(new Platform({
-      position: { x: 500, y: h - 350 },
-      width: 150,
-      height: 20
-    }));
+    // Clear world and spawn initial platforms
+    this.world.clear();
+    this.platformSpawner.initialize(this.world, this.player.getPosition().y);
 
-    // Floating platforms in middle
-    this.world.addEntity(new Platform({
-      position: { x: w / 2 - 100, y: h / 2 },
-      width: 200,
-      height: 20
-    }));
+    // Initialize score system
+    this.scoreSystem.initialize(this.player.getPosition().y);
 
-    // Small platform (edge case testing)
-    this.world.addEntity(new Platform({
-      position: { x: w - 200, y: h - 200 },
-      width: 80,
-      height: 15
-    }));
+    // Reset game state
+    this.gameOver = false;
 
     // Initialize input controllers
     this.keyboardController = new KeyboardController(this.inputManager, {
@@ -212,9 +211,15 @@ export class Game {
    * @param dt - Fixed delta time in seconds
    */
   private update(dt: number): void {
-    // Handle input commands (pause, debug toggle, etc.)
+    // Handle input commands (pause, debug toggle, restart, etc.)
     this.inputCommandHandler.update();
 
+    // Don't update game logic if game over
+    if (this.gameOver) {
+      return;
+    }
+
+    // Update player
     this.player.update(
       dt,
       this.activeController,
@@ -231,6 +236,23 @@ export class Game {
     // Get collidables (player is not in world, so add manually)
     const collidables = [this.player, ...this.world.getCollidables()];
     this.physicsSystem.update(dt, [], collidables);
+
+    // Update camera to follow player
+    this.camera.update(dt, this.player.getPosition().y);
+
+    // Update platform spawner (spawn new platforms, despawn old ones)
+    this.platformSpawner.update(
+      this.player.getPosition().y,
+      this.camera.getPosition().y
+    );
+
+    // Update score based on player height
+    this.scoreSystem.update(this.player.getPosition().y);
+
+    // Check for game over
+    if (this.checkGameOver()) {
+      this.handleGameOver();
+    }
   }
 
   /**
@@ -244,13 +266,17 @@ export class Game {
     this.renderer.clear();
     this.renderer.fillBackground('#1a1a2e');
 
+    // Apply camera transform for world-space rendering
+    const ctx = this.renderer.getCanvasContext();
+    this.camera.applyTransform(ctx);
+
     // Draw all entities in world (platforms)
     this.world.render(this.renderer);
 
     // Draw player
     this.player.render(this.renderer);
 
-    // Render debug visualizations
+    // Render debug visualizations (world space)
     if (this.debugSystem.isEnabled()) {
       const playerPos = this.player.getPosition();
       const playerRadius = this.player.getRadius();
@@ -275,6 +301,9 @@ export class Game {
       this.debugSystem.render(this.renderer, debugData);
     }
 
+    // Reset camera transform for UI rendering (screen space)
+    this.camera.resetTransform(ctx);
+
     // Render HUD/UI
     const uiState: UIGameState = {
       fps: this.fpsCounter.getFPS(),
@@ -283,10 +312,48 @@ export class Game {
       showPermissionPrompt: this.showPermissionButton,
       debugEnabled: this.debugSystem.isFeatureEnabled(DebugFeature.Raycasts),
       hasMotionSensors: this.inputManager.hasMotionSensors(),
-      hasMotionPermission: this.inputManager.hasMotionPermission()
+      hasMotionPermission: this.inputManager.hasMotionPermission(),
+      score: this.scoreSystem.getCurrentScore(),
+      highScore: this.scoreSystem.getHighScore(),
+      gameOver: this.gameOver,
+      isNewHighScore: this.scoreSystem.isNewHighScore()
     };
 
     this.hud.render(this.renderer, uiState);
+  }
+
+  /**
+   * Check if game over condition is met (player fell below camera)
+   * 
+   * @returns True if player has fallen below camera view
+   */
+  private checkGameOver(): boolean {
+    const playerY = this.player.getPosition().y;
+    const cameraBottom = this.camera.getPosition().y + this.renderer.getHeight();
+    
+    // Player fell below camera view
+    return playerY > cameraBottom;
+  }
+
+  /**
+   * Handle game over state
+   */
+  private handleGameOver(): void {
+    this.gameOver = true;
+    console.log('Game Over! Final score:', this.scoreSystem.getCurrentScore());
+  }
+
+  /**
+   * Restart the game
+   */
+  private restart(): void {
+    console.log('Restarting game...');
+    
+    // Reset score system (keeps high score)
+    this.scoreSystem.reset();
+    
+    // Reinitialize game state
+    this.initialize();
   }
 
   /**

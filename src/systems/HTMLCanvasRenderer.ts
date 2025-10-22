@@ -53,6 +53,14 @@ export class HTMLCanvasRenderer implements Renderer {
   }
 
   /**
+   * Get the canvas 2D rendering context
+   * Used by systems that need direct access to canvas transforms (e.g., Camera)
+   */
+  getCanvasContext(): CanvasRenderingContext2D {
+    return this.ctx;
+  }
+
+  /**
    * Handle canvas resize to match window dimensions
    */
   resize(): void {

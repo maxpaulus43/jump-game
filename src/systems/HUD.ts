@@ -32,20 +32,28 @@ export class HUD {
    * @param state - Current game state
    */
   render(renderer: Renderer, state: UIGameState): void {
+    // Render score (always visible)
+    this.renderScore(renderer, state);
+
     if (this.config.showFPS) {
       this.renderFPS(renderer, state.fps);
     }
 
-    if (this.config.showInstructions) {
+    if (this.config.showInstructions && !state.gameOver) {
       this.renderInstructions(renderer, state);
     }
 
-    if (state.showPermissionPrompt) {
+    if (state.showPermissionPrompt && !state.gameOver) {
       this.renderPermissionPrompt(renderer);
     }
 
-    if (this.config.showPauseIndicator && state.paused) {
+    if (this.config.showPauseIndicator && state.paused && !state.gameOver) {
       this.renderPauseIndicator(renderer);
+    }
+
+    // Render game over screen on top of everything
+    if (state.gameOver) {
+      this.renderGameOverScreen(renderer, state);
     }
   }
 
@@ -161,6 +169,95 @@ export class HUD {
       renderer.getHeight() - 50,
       '#ffaa00',
       'bold 16px monospace'
+    );
+  }
+
+  /**
+   * Render score display (top center)
+   * @param renderer - Renderer instance
+   * @param state - Current game state
+   */
+  renderScore(renderer: Renderer, state: UIGameState): void {
+    const centerX = renderer.getWidth() / 2;
+
+    // Current score (large, centered)
+    renderer.drawText(
+      `${state.score}`,
+      centerX - 60,
+      40,
+      '#00ff88',
+      'bold 32px monospace'
+    );
+
+    // High score label (smaller, below current score)
+    renderer.drawText(
+      `Best: ${state.highScore}`,
+      centerX - 60,
+      70,
+      '#ffbf00',
+      '18px monospace'
+    );
+  }
+
+  /**
+   * Render game over screen overlay
+   * @param renderer - Renderer instance
+   * @param state - Current game state
+   */
+  renderGameOverScreen(renderer: Renderer, state: UIGameState): void {
+    const centerX = renderer.getWidth() / 2;
+    const centerY = renderer.getHeight() / 2;
+
+    // Semi-transparent overlay
+    const ctx = renderer.getCanvasContext();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx.fillRect(0, 0, renderer.getWidth(), renderer.getHeight());
+
+    // Game Over text
+    renderer.drawText(
+      'GAME OVER',
+      centerX - 120,
+      centerY - 80,
+      '#ff4444',
+      'bold 48px monospace'
+    );
+
+    // Final score
+    renderer.drawText(
+      `Score: ${state.score}`,
+      centerX - 90,
+      centerY - 20,
+      '#00ff88',
+      'bold 36px monospace'
+    );
+
+    // New high score indicator
+    if (state.isNewHighScore && state.score > 0) {
+      renderer.drawText(
+        'NEW HIGH SCORE!',
+        centerX - 140,
+        centerY + 30,
+        '#ffbf00',
+        'bold 28px monospace'
+      );
+    } else {
+      // Show high score if not a new record
+      renderer.drawText(
+        `High Score: ${state.highScore}`,
+        centerX - 120,
+        centerY + 30,
+        '#ffbf00',
+        '24px monospace'
+      );
+    }
+
+    // Restart instruction
+    renderer.drawText(
+      'Press R to Restart',
+      centerX - 120,
+      centerY + 80,
+      '#ffffff',
+      '24px monospace'
     );
   }
 
