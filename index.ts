@@ -1,8 +1,6 @@
 import { Game } from './src/core/Game.js';
 import { HTMLCanvasRenderer as HTMLCanvasRenderer } from './src/systems/HTMLCanvasRenderer.js';
 import { InputManager } from './src/systems/input/InputManager.js';
-import { PhysicsSystem } from './src/systems/physics/PhysicsSystem.js';
-import { Vec2 } from './src/utils/Vec2.js';
 
 /**
  * Entry point for the game
@@ -123,22 +121,6 @@ function createStartButton(game: Game, inputManager: InputManager): void {
     transition: transform 0.1s, background-color 0.2s;
   `;
 
-  // Add hover effect
-  button.addEventListener('mouseenter', () => {
-    button.style.backgroundColor = '#00dd77';
-  });
-  button.addEventListener('mouseleave', () => {
-    button.style.backgroundColor = '#00ff88';
-  });
-
-  // Add active effect
-  button.addEventListener('mousedown', () => {
-    button.style.transform = 'scale(0.95)';
-  });
-  button.addEventListener('mouseup', () => {
-    button.style.transform = 'scale(1)';
-  });
-
   // Handle button click/touch - MUST be synchronous for iOS
   const handleButtonPress = async () => {
     console.log('Start button pressed, requesting permission...');
@@ -157,6 +139,7 @@ function createStartButton(game: Game, inputManager: InputManager): void {
         console.log('Permission granted!');
         button.textContent = 'Starting Game...';
         overlay.remove();
+        game.toggleAccelerometer()
         game.start();
         console.log('Game started successfully!');
       } else {
