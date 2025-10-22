@@ -14,6 +14,8 @@ import { AccelerometerController } from '../systems/input/AccelerometerControlle
 import { Camera } from '../systems/Camera.js';
 import { PlatformSpawner } from '../systems/PlatformSpawner.js';
 import { ScoreSystem } from '../systems/ScoreSystem.js';
+import { TouchButtonManager } from '../systems/ui/TouchButtonManager.js';
+import { ButtonFactory } from '../systems/ui/ButtonFactory.js';
 import type { InputController } from '../types/input.js';
 import { DebugFeature, DebugData, UIGameState } from '../types/index.js';
 import { Renderer } from '../types/renderer.js';
@@ -38,6 +40,7 @@ export class Game {
   private physicsSystem: PhysicsSystem;
   private platformSpawner!: PlatformSpawner;
   private scoreSystem: ScoreSystem;
+  private touchButtonManager!: TouchButtonManager;
 
   // Input controllers
   private keyboardController!: KeyboardController;
@@ -163,6 +166,81 @@ export class Game {
     this.activeController = this.inputManager.hasMotionPermission()
       ? this.accelerometerController
       : this.keyboardController;
+    
+    // Initialize touch buttons
+    this.initializeTouchButtons();
+  }
+  
+  /**
+   * Initialize touch button UI system
+   */
+  private initializeTouchButtons(): void {
+    const w = this.renderer.getWidth();
+    const h = this.renderer.getHeight();
+    
+    // Create touch button manager with auto-hide enabled
+    this.touchButtonManager = new TouchButtonManager({
+      enableAutoHide: true,
+      hideButtonsDelay: 3000,
+      fadeOutDuration: 500
+    });
+    
+    // Create buttons
+    const pauseBtn = ButtonFactory.createPauseButton(
+      { x: 60, y: h - 60 },
+      () => this.pause()
+    );
+    
+    const resumeBtn = ButtonFactory.createResumeButton(
+      { x: 60, y: h - 60 },
+      () => this.resume()
+    );
+    
+    const restartBtn = ButtonFactory.createRestartButton(
+      { x: w / 2, y: h - 80 },
+      () => this.restart()
+    );
+    
+    const debugBtn = ButtonFactory.createDebugToggleButton(
+      { x: w - 60, y: h - 60 },
+      () => this.debugSystem.toggle(DebugFeature.Raycasts)
+    );
+    
+    // Only create accelerometer toggle if device has motion sensors
+    if (this.inputManager.hasMotionSensors()) {
+      const accelToggleBtn = ButtonFactory.createAccelerometerToggleButton(
+        { x: w - 60, y: 60 },
+        () => this.toggleAccelerometer()
+      );
+      this.touchButtonManager.addButton(accelToggleBtn);
+    }
+    
+    // Add buttons to manager
+    this.touchButtonManager.addButton(pauseBtn);
+    this.touchButtonManager.addButton(resumeBtn);
+    this.touchButtonManager.addButton(restartBtn);
+    this.touchButtonManager.addButton(debugBtn);
+    
+    // Create visibility groups
+    this.touchButtonManager.createGroup('gameplay', ['pause', 'debug']);
+    this.touchButtonManager.createGroup('paused', ['resume', 'debug']);
+    this.touchButtonManager.createGroup('gameOver', ['restart']);
+    
+    // Show initial group
+    this.updateButtonVisibility();
+  }
+  
+  /**
+   * Update button visibility based on game state
+   */
+  private updateButtonVisibility(): void {
+    if (this.gameOver) {
+      this.touchButtonManager.showGroup('gameOver');
+    } else if (this.gameLoop.isPaused()) {
+      this.touchButtonManager.showGroup('paused');
+    } else {
+      this.touchButtonManager.showGroup('gameplay');
+    }
   }
 
   /**
@@ -197,6 +275,7 @@ export class Game {
    */
   pause(): void {
     this.gameLoop.pause();
+    this.updateButtonVisibility();
   }
 
   /**
@@ -204,6 +283,7 @@ export class Game {
    */
   resume(): void {
     this.gameLoop.resume();
+    this.updateButtonVisibility();
   }
 
   /**
@@ -259,6 +339,19 @@ export class Game {
    * Render current frame
    */
   private render(): void {
+    // Handle touch input for buttons (runs even when paused)
+    if (this.inputManager.isTouchActive()) {
+      const touches = this.inputManager.getTouches();
+      this.touchButtonManager.handleTouchStart(touches);
+    } else {
+      // Release all button presses when no touches active
+      this.touchButtonManager.handleAllTouchesEnd();
+    }
+    
+    // Update button manager with frame time estimate (runs even when paused)
+    // Using fixed 16.67ms (60 FPS) since we don't have dt in render
+    this.touchButtonManager.update(1 / 60);
+    
     // Update FPS counter
     this.fpsCounter.update();
 
@@ -320,6 +413,9 @@ export class Game {
     };
 
     this.hud.render(this.renderer, uiState);
+    
+    // Render touch buttons (last, on top of everything)
+    this.touchButtonManager.render(this.renderer);
   }
 
   /**
@@ -340,6 +436,7 @@ export class Game {
    */
   private handleGameOver(): void {
     this.gameOver = true;
+    this.updateButtonVisibility();
     console.log('Game Over! Final score:', this.scoreSystem.getCurrentScore());
   }
 
