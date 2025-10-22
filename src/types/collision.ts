@@ -5,6 +5,8 @@
  * collision shapes, detection results, materials, and the Collidable interface.
  */
 
+import { Vec2 } from "../utils/Vec2";
+
 /**
  * Types of collision shapes supported
  */
@@ -57,7 +59,7 @@ export interface CollisionResult {
   /** Penetration depth (how much objects overlap) */
   depth: number;
   /** Normal vector pointing from shape A to shape B (direction to resolve collision) */
-  normal: { x: number; y: number };
+  normal: Vec2;
   /** Contact point (where collision occurred) */
   contactPoint: { x: number; y: number };
 }

@@ -15,6 +15,7 @@ import {
   RaycastResult,
   Collidable
 } from '../../types/collision.js';
+import { Vec2 } from '../../utils/Vec2.js';
 
 export class CollisionDetector {
   /**
@@ -51,7 +52,7 @@ export class CollisionDetector {
     return out || {
       colliding: false,
       depth: 0,
-      normal: { x: 0, y: 0 },
+      normal: new Vec2(0, 0),
       contactPoint: { x: 0, y: 0 }
     };
   }
@@ -114,7 +115,7 @@ export class CollisionDetector {
       return {
         colliding: true,
         depth,
-        normal: { x: normalX, y: normalY },
+        normal: new Vec2(normalX, normalY),
         contactPoint: { x: contactX, y: contactY }
       };
     }
@@ -133,7 +134,7 @@ export class CollisionDetector {
     return {
       colliding: false,
       depth: 0,
-      normal: { x: 0, y: 0 },
+      normal: new Vec2(0, 0),
       contactPoint: { x: 0, y: 0 }
     };
   }
@@ -217,7 +218,7 @@ export class CollisionDetector {
       return {
         colliding: true,
         depth,
-        normal: { x: normalX, y: normalY },
+        normal: new Vec2(normalX, normalY),
         contactPoint: { x: closestX, y: closestY }
       };
     }
@@ -236,7 +237,7 @@ export class CollisionDetector {
     return {
       colliding: false,
       depth: 0,
-      normal: { x: 0, y: 0 },
+      normal: new Vec2(0, 0),
       contactPoint: { x: 0, y: 0 }
     };
   }
@@ -299,7 +300,7 @@ export class CollisionDetector {
       return {
         colliding: true,
         depth,
-        normal: { x: normalX, y: normalY },
+        normal: new Vec2(normalX, normalY),
         contactPoint: { x: contactX, y: contactY }
       };
     }
@@ -318,7 +319,7 @@ export class CollisionDetector {
     return {
       colliding: false,
       depth: 0,
-      normal: { x: 0, y: 0 },
+      normal: new Vec2(0, 0),
       contactPoint: { x: 0, y: 0 }
     };
   }

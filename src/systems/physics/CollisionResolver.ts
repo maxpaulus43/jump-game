@@ -35,7 +35,7 @@ export class CollisionResolver {
     const invertedResult: CollisionResult = {
       colliding: result.colliding,
       depth: result.depth,
-      normal: { x: -result.normal.x, y: -result.normal.y },
+      normal: result.normal.clone().multiply(-1),
       contactPoint: result.contactPoint
     };
     entityB.onCollision(entityA, invertedResult);
