@@ -38,6 +38,7 @@ export class Player implements Collidable {
   private restitution: number;
   private acceleration: number;
   private color: string;
+  private jumpVelocity: number = 1000;
   private isGrounded: boolean = false;
 
   // Reusable raycast result (zero-allocation pattern)
@@ -110,7 +111,7 @@ export class Player implements Collidable {
       this.velocity.y = Math.abs(this.velocity.y) * this.restitution;
     } else if (this.position.y + this.radius > bounds.height) {
       this.position.y = bounds.height - this.radius;
-      this.velocity.y = -Math.abs(this.velocity.y) * this.restitution;
+      this.velocity.y = -this.jumpVelocity;
     }
   }
 
@@ -166,16 +167,12 @@ export class Player implements Collidable {
     // This prevents sticking to sides/bottom of platforms
     if (result.normal.y < -0.5) {
       // Landing on top of platform
-      // Calculate bounce velocity using combined restitution
-      const combinedRestitution = this.restitution * other.getCollisionMaterial().restitution;
-
       // Reflect velocity along normal with restitution
       const velocityDotNormal = this.velocity.x * result.normal.x + this.velocity.y * result.normal.y;
 
       // Apply bounce (only if moving into the surface)
       if (velocityDotNormal < 0) {
-        this.velocity.x -= (1 + combinedRestitution) * velocityDotNormal * result.normal.x;
-        this.velocity.y -= (1 + combinedRestitution) * velocityDotNormal * result.normal.y;
+        this.velocity.y = -this.jumpVelocity;
       }
 
       // Separate shapes to prevent overlap
