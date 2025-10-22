@@ -19,6 +19,16 @@ import type { InputController } from '../types/input.js';
 import { DebugFeature, DebugData, UIGameState } from '../types/index.js';
 import { Renderer } from '../types/renderer.js';
 
+// ECS imports
+import { ECSWorld } from '../ecs/ECSWorld.js';
+import { SystemScheduler } from '../ecs/SystemScheduler.js';
+import { createPlayer } from '../ecs/prefabs/PlayerPrefab.js';
+import { createPlatform } from '../ecs/prefabs/PlatformPrefab.js';
+import { PhysicsSystem as ECSPhysicsSystem } from '../ecs/systems/PhysicsSystem.js';
+import { RenderSystem as ECSRenderSystem } from '../ecs/systems/RenderSystem.js';
+import type { Entity } from '../ecs/types.js';
+import { PlatformType } from '../ecs/components/Platform.js';
+
 /**
  * Game class orchestrates all game systems
  * Manages the game lifecycle and coordinates between subsystems
@@ -29,6 +39,13 @@ export class Game {
   private gameLoop: GameLoop;
   private player: Player = new Player();
   private world: World;
+
+  // ECS integration (Phase 2.4)
+  private ecsWorld!: ECSWorld;
+  private systemScheduler!: SystemScheduler;
+  private ecsPlayerEntity!: Entity;
+  private ecsPlatformEntities: Entity[] = [];
+  private renderECS: boolean = true; // Debug toggle for ECS rendering
 
   // Systems
   private camera!: Camera;
@@ -94,6 +111,11 @@ export class Game {
 
     this.inputCommandHandler.registerCommand('t', () => {
       this.toggleAccelerometer();
+    });
+
+    this.inputCommandHandler.registerCommand('e', () => {
+      this.renderECS = !this.renderECS;
+      console.log('ECS rendering:', this.renderECS ? 'ON' : 'OFF');
     });
 
     // Mobile controls
@@ -168,6 +190,66 @@ export class Game {
 
     // Initialize touch buttons
     this.initializeTouchButtons();
+
+    // ===== ECS INITIALIZATION (Phase 2.4) =====
+    this.initializeECS();
+  }
+
+  /**
+   * Initialize ECS world and systems (Phase 2.4 - parallel mode)
+   */
+  private initializeECS(): void {
+    // Create ECS world
+    this.ecsWorld = new ECSWorld();
+    this.systemScheduler = new SystemScheduler();
+
+    // Create ECS player at same position as OOP player
+    const playerPos = this.player.getPosition();
+    this.ecsPlayerEntity = createPlayer(this.ecsWorld, playerPos.x, playerPos.y);
+    console.log('Created ECS player entity:', this.ecsPlayerEntity);
+
+    // Create ECS platforms matching OOP platforms
+    this.ecsPlatformEntities = [];
+    const platforms = this.world.getPlatforms();
+    for (const platform of platforms) {
+      const bounds = platform.getBounds();
+      
+      // Map OOP platform type to ECS PlatformType
+      let platformType: PlatformType;
+      switch (platform.getType()) {
+        case 'standard':
+          platformType = PlatformType.Standard;
+          break;
+        case 'moving':
+          platformType = PlatformType.Moving;
+          break;
+        case 'weak':
+          platformType = PlatformType.Weak;
+          break;
+        case 'powerup':
+          platformType = PlatformType.Powerup;
+          break;
+        default:
+          platformType = PlatformType.Standard;
+      }
+
+      const entity = createPlatform(
+        this.ecsWorld,
+        bounds.x,
+        bounds.y,
+        bounds.width,
+        bounds.height,
+        platformType
+      );
+      this.ecsPlatformEntities.push(entity);
+    }
+    console.log(`Created ${this.ecsPlatformEntities.length} ECS platform entities`);
+
+    // Register ECS systems in execution order
+    // Phase 2.4: Only physics in update loop, rendering done separately in render()
+    this.systemScheduler.addSystem(new ECSPhysicsSystem());
+
+    console.log('ECS initialized with', this.ecsWorld.getEntityCount(), 'entities');
   }
 
   /**
@@ -332,6 +414,10 @@ export class Game {
     if (this.checkGameOver()) {
       this.handleGameOver();
     }
+
+    // ===== ECS UPDATE (Phase 2.4) =====
+    // Update ECS physics systems (runs in parallel with OOP)
+    this.systemScheduler.update(dt, this.ecsWorld);
   }
 
   /**
@@ -367,6 +453,13 @@ export class Game {
 
     // Draw player
     this.player.render(this.renderer);
+
+    // ===== ECS RENDERING (Phase 2.4) =====
+    // Render ECS entities (runs in parallel with OOP)
+    if (this.renderECS) {
+      const ecsRenderSystem = new ECSRenderSystem(this.renderer);
+      ecsRenderSystem.update(0, this.ecsWorld); // dt not used for rendering
+    }
 
     // Render debug visualizations (world space)
     if (this.debugSystem.isEnabled()) {
