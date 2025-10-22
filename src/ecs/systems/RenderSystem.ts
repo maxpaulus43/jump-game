@@ -22,20 +22,20 @@ import type { Renderer } from '../../types/renderer.js';
  */
 export class RenderSystem implements System {
   readonly name = 'RenderSystem';
-  
-  constructor(private renderer: Renderer) {}
-  
+
+  constructor(private renderer: Renderer) { }
+
   update(_dt: number, world: ECSWorld): void {
     // Query for all renderable entities with circle colliders
     const circleEntities = world.query({
       with: [Transform.type, Renderable.type, CircleCollider.type]
     });
-    
+
     // Query for all renderable entities with rect colliders
     const rectEntities = world.query({
       with: [Transform.type, Renderable.type, RectCollider.type]
     });
-    
+
     // Combine all entities and sort by layer
     const allEntities = [...circleEntities, ...rectEntities];
     const sortedEntities = allEntities.sort((a, b) => {
@@ -43,16 +43,16 @@ export class RenderSystem implements System {
       const renderB = world.getComponent(b, Renderable.type)!;
       return renderA.layer - renderB.layer; // Lower layers first
     });
-    
+
     // Render each entity based on its collider type
     for (const entity of sortedEntities) {
       const transform = world.getComponent(entity, Transform.type)!;
       const renderable = world.getComponent(entity, Renderable.type)!;
-      
+
       // Check which collider type this entity has
       const circleCollider = world.getComponent(entity, CircleCollider.type);
       const rectCollider = world.getComponent(entity, RectCollider.type);
-      
+
       if (circleCollider) {
         // Draw circle
         this.renderer.drawCircle(
@@ -73,7 +73,7 @@ export class RenderSystem implements System {
       }
     }
   }
-  
+
   onDestroy(): void {
     // No cleanup needed
   }

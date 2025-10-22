@@ -1,33 +1,36 @@
 import { GameLoop } from './GameLoop.js';
 import { InputManager } from '../systems/input/InputManager.js';
-import { Player } from './Player.js';
-import { World } from './World.js';
-import { Vec2 } from '../utils/Vec2.js';
 import { FPSCounter } from '../systems/FPSCounter.js';
 import { HUD } from '../systems/HUD.js';
-import { DebugSystem } from '../systems/DebugSystem.js';
 import { InputCommandHandler } from '../systems/input/InputCommandHandler.js';
-import { PhysicsSystem } from '../systems/physics/PhysicsSystem.js';
 import { KeyboardController } from '../systems/input/KeyboardController.js';
 import { AccelerometerController } from '../systems/input/AccelerometerController.js';
 import { Camera } from '../systems/Camera.js';
-import { PlatformSpawner } from '../systems/PlatformSpawner.js';
 import { ScoreSystem } from '../systems/ScoreSystem.js';
 import { TouchButtonManager } from '../systems/ui/TouchButtonManager.js';
 import { ButtonFactory } from '../systems/ui/ButtonFactory.js';
 import type { InputController } from '../types/input.js';
-import { DebugFeature, DebugData, UIGameState } from '../types/index.js';
+import { DebugFeature, UIGameState } from '../types/index.js';
 import { Renderer } from '../types/renderer.js';
 
 // ECS imports
 import { ECSWorld } from '../ecs/ECSWorld.js';
 import { SystemScheduler } from '../ecs/SystemScheduler.js';
 import { createPlayer } from '../ecs/prefabs/PlayerPrefab.js';
-import { createPlatform } from '../ecs/prefabs/PlatformPrefab.js';
-import { PhysicsSystem as ECSPhysicsSystem } from '../ecs/systems/PhysicsSystem.js';
-import { RenderSystem as ECSRenderSystem } from '../ecs/systems/RenderSystem.js';
+import {
+  PhysicsSystem as ECSPhysicsSystem,
+  RenderSystem as ECSRenderSystem,
+  PlayerInputSystem,
+  PlayerPhysicsSystem,
+  VelocityCapSystem,
+  BoundaryCollisionSystem,
+  CollisionSystem,
+  GroundDetectionSystem,
+  CameraFollowSystem,
+  PlatformSpawnSystem
+} from '../ecs/systems/index.js';
 import type { Entity } from '../ecs/types.js';
-import { PlatformType } from '../ecs/components/Platform.js';
+import { Transform } from '../ecs/components/Transform.js';
 
 /**
  * Game class orchestrates all game systems
@@ -37,24 +40,17 @@ export class Game {
   public readonly renderer: Renderer;
   public readonly inputManager: InputManager;
   private gameLoop: GameLoop;
-  private player: Player = new Player();
-  private world: World;
 
   // ECS integration (Phase 2.4)
   private ecsWorld!: ECSWorld;
   private systemScheduler!: SystemScheduler;
   private ecsPlayerEntity!: Entity;
-  private ecsPlatformEntities: Entity[] = [];
-  private renderECS: boolean = true; // Debug toggle for ECS rendering
 
   // Systems
   private camera!: Camera;
   private fpsCounter: FPSCounter;
   private hud: HUD;
-  private debugSystem: DebugSystem;
   private inputCommandHandler: InputCommandHandler;
-  private physicsSystem: PhysicsSystem;
-  private platformSpawner!: PlatformSpawner;
   private scoreSystem: ScoreSystem;
   private touchButtonManager!: TouchButtonManager;
 
@@ -79,17 +75,10 @@ export class Game {
       maxDeltaTime: 0.25 // Prevent spiral of death
     });
 
-    this.world = new World();
-
     // Initialize systems
     this.fpsCounter = new FPSCounter();
     this.hud = new HUD();
-    this.debugSystem = new DebugSystem();
     this.inputCommandHandler = new InputCommandHandler(this.inputManager);
-    this.physicsSystem = new PhysicsSystem({
-      gravity: new Vec2(0, 0), // Gravity handled by player for now
-      enableCollisions: true
-    });
     this.scoreSystem = new ScoreSystem();
 
     // Register input commands
@@ -104,18 +93,11 @@ export class Game {
     this.inputCommandHandler.registerCommand('r', () => {
       if (this.gameOver) {
         this.restart();
-      } else {
-        this.debugSystem.toggle(DebugFeature.Raycasts);
       }
     });
 
     this.inputCommandHandler.registerCommand('t', () => {
       this.toggleAccelerometer();
-    });
-
-    this.inputCommandHandler.registerCommand('e', () => {
-      this.renderECS = !this.renderECS;
-      console.log('ECS rendering:', this.renderECS ? 'ON' : 'OFF');
     });
 
     // Mobile controls
@@ -128,46 +110,17 @@ export class Game {
    * Initialize game state
    */
   private initialize(): void {
-    // Initialize player at center of screen
-    const w = this.renderer.getWidth();
+    // // Initialize player at center of screen
     const h = this.renderer.getHeight();
 
-    // Initialize camera with smooth following
+    // // Initialize camera with smooth following
     this.camera = new Camera({
       smoothing: 0.1,
       followThreshold: h / 2,
       enabled: true
     }, h);
 
-    this.player = new Player({
-      position: { x: w / 2, y: h / 2 },
-      radius: 20,
-      gravity: 3000,
-      restitution: 1.0,
-      acceleration: 1200,
-      maxSpeed: 800,
-      color: '#ffbf00ff'
-    });
-
-    // Initialize platform spawner
-    this.platformSpawner = new PlatformSpawner({
-      worldWidth: w,
-      spawnDistance: 800,
-      despawnDistance: 1000,
-      initialPlatformCount: 8
-    });
-
-    // Clear world and spawn initial platforms
-    this.world.clear();
-    this.platformSpawner.initialize(this.world, this.player.getPosition().y);
-
-    // Initialize score system
-    this.scoreSystem.initialize(this.player.getPosition().y);
-
-    // Reset game state
-    this.gameOver = false;
-
-    // Initialize input controllers
+    // // Initialize input controllers
     this.keyboardController = new KeyboardController(this.inputManager, {
       acceleration: 1200,
       upKeys: ['w', 'ArrowUp'],
@@ -183,12 +136,12 @@ export class Game {
       deadZone: 0.0      // Slightly reduced dead zone for better responsiveness
     });
 
-    // Set initial active controller based on device capabilities
+    // // Set initial active controller based on device capabilities
     this.activeController = this.inputManager.hasMotionPermission()
       ? this.accelerometerController
       : this.keyboardController;
 
-    // Initialize touch buttons
+    // // Initialize touch buttons
     this.initializeTouchButtons();
 
     // ===== ECS INITIALIZATION (Phase 2.4) =====
@@ -196,7 +149,7 @@ export class Game {
   }
 
   /**
-   * Initialize ECS world and systems (Phase 2.4 - parallel mode)
+   * Initialize ECS world and systems (Phase 3.2 - full system integration)
    */
   private initializeECS(): void {
     // Create ECS world
@@ -204,52 +157,46 @@ export class Game {
     this.systemScheduler = new SystemScheduler();
 
     // Create ECS player at same position as OOP player
-    const playerPos = this.player.getPosition();
-    this.ecsPlayerEntity = createPlayer(this.ecsWorld, playerPos.x, playerPos.y);
+    const w = this.renderer.getWidth();
+    const h = this.renderer.getHeight();
+    this.ecsPlayerEntity = createPlayer(this.ecsWorld, w / 2, h / 2);
     console.log('Created ECS player entity:', this.ecsPlayerEntity);
 
-    // Create ECS platforms matching OOP platforms
-    this.ecsPlatformEntities = [];
-    const platforms = this.world.getPlatforms();
-    for (const platform of platforms) {
-      const bounds = platform.getBounds();
-      
-      // Map OOP platform type to ECS PlatformType
-      let platformType: PlatformType;
-      switch (platform.getType()) {
-        case 'standard':
-          platformType = PlatformType.Standard;
-          break;
-        case 'moving':
-          platformType = PlatformType.Moving;
-          break;
-        case 'weak':
-          platformType = PlatformType.Weak;
-          break;
-        case 'powerup':
-          platformType = PlatformType.Powerup;
-          break;
-        default:
-          platformType = PlatformType.Standard;
-      }
+    // Register ECS systems in execution order (Phase 3.2)
+    // 1. Input - read keyboard/accelerometer input
+    this.systemScheduler.addSystem(new PlayerInputSystem(this.activeController));
 
-      const entity = createPlatform(
-        this.ecsWorld,
-        bounds.x,
-        bounds.y,
-        bounds.width,
-        bounds.height,
-        platformType
-      );
-      this.ecsPlatformEntities.push(entity);
-    }
-    console.log(`Created ${this.ecsPlatformEntities.length} ECS platform entities`);
+    // 2. Player Physics - apply gravity and jump physics
+    this.systemScheduler.addSystem(new PlayerPhysicsSystem());
 
-    // Register ECS systems in execution order
-    // Phase 2.4: Only physics in update loop, rendering done separately in render()
+    // 3. General Physics - integrate velocity into position
     this.systemScheduler.addSystem(new ECSPhysicsSystem());
 
+    // 4. Boundary Collisions - clamp to screen edges
+    this.systemScheduler.addSystem(new BoundaryCollisionSystem(this.renderer));
+
+    // 5. Entity Collisions - detect and resolve collisions
+    this.systemScheduler.addSystem(new CollisionSystem());
+
+    // 6. Ground Detection - raycast for jump detection
+    this.systemScheduler.addSystem(new GroundDetectionSystem());
+
+    // 7. Velocity Cap - enforce max speed limits
+    this.systemScheduler.addSystem(new VelocityCapSystem());
+
+    // 8. Camera Follow - update camera to follow player
+    this.systemScheduler.addSystem(new CameraFollowSystem(this.camera));
+
+    // 9. Platform Spawning - spawn/despawn platforms dynamically
+    this.systemScheduler.addSystem(new PlatformSpawnSystem(this.camera, this.renderer, {
+      worldWidth: this.renderer.getWidth(),
+      spawnDistance: 800,
+      despawnDistance: 1000,
+      initialPlatformCount: 8
+    }));
+
     console.log('ECS initialized with', this.ecsWorld.getEntityCount(), 'entities');
+    console.log('Registered', this.systemScheduler['systems'].length, 'ECS systems');
   }
 
   /**
@@ -372,50 +319,14 @@ export class Game {
    * @param dt - Fixed delta time in seconds
    */
   private update(dt: number): void {
-    // Handle input commands (pause, debug toggle, restart, etc.)
-    this.inputCommandHandler.update();
-
-    // Don't update game logic if game over
+    // // Don't update game logic if game over
     if (this.gameOver) {
       return;
     }
-
-    // Update player
-    this.player.update(
-      dt,
-      this.activeController,
-      { width: this.renderer.getWidth(), height: this.renderer.getHeight() }
-    );
-
-    // Get platforms from world for ground detection
-    const platforms = this.world.getPlatforms();
-
-    // Raycast ground detection (demonstrates raycast usage)
-    this.player.checkGrounded(platforms as any[]);
-
-    // Use PhysicsSystem to handle collisions
-    // Get collidables (player is not in world, so add manually)
-    const collidables = [this.player, ...this.world.getCollidables()];
-    this.physicsSystem.update(dt, [], collidables);
-
-    // Update camera to follow player
-    this.camera.update(dt, this.player.getPosition().y);
-
-    // Update platform spawner (spawn new platforms, despawn old ones)
-    this.platformSpawner.update(
-      this.player.getPosition().y,
-      this.camera.getPosition().y
-    );
-
-    // Update score based on player height
-    this.scoreSystem.update(this.player.getPosition().y);
-
     // Check for game over
     if (this.checkGameOver()) {
       this.handleGameOver();
     }
-
-    // ===== ECS UPDATE (Phase 2.4) =====
     // Update ECS physics systems (runs in parallel with OOP)
     this.systemScheduler.update(dt, this.ecsWorld);
   }
@@ -435,9 +346,6 @@ export class Game {
 
     // Update button manager with frame time estimate (runs even when paused)
     // Using fixed 16.67ms (60 FPS) since we don't have dt in render
-    this.touchButtonManager.update(1 / 60);
-
-    // Update FPS counter
     this.fpsCounter.update();
 
     // Clear canvas
@@ -448,43 +356,10 @@ export class Game {
     const ctx = this.renderer.getCanvasContext();
     this.camera.applyTransform(ctx);
 
-    // Draw all entities in world (platforms)
-    this.world.render(this.renderer);
-
-    // Draw player
-    this.player.render(this.renderer);
-
     // ===== ECS RENDERING (Phase 2.4) =====
     // Render ECS entities (runs in parallel with OOP)
-    if (this.renderECS) {
-      const ecsRenderSystem = new ECSRenderSystem(this.renderer);
-      ecsRenderSystem.update(0, this.ecsWorld); // dt not used for rendering
-    }
-
-    // Render debug visualizations (world space)
-    if (this.debugSystem.isEnabled()) {
-      const playerPos = this.player.getPosition();
-      const playerRadius = this.player.getRadius();
-      const raycastResult = this.player.getGroundRaycastResult();
-
-      const debugData: DebugData = {
-        entities: [{
-          position: { x: playerPos.x, y: playerPos.y },
-          radius: playerRadius,
-          isGrounded: this.player.getIsGrounded()
-        }],
-        raycasts: [{
-          origin: { x: playerPos.x, y: playerPos.y },
-          direction: { x: 0, y: 1 },
-          maxDistance: playerRadius + 5,
-          result: raycastResult,
-          color: this.player.getIsGrounded() ? '#00ff00' : '#ff00ff'
-        }],
-        fps: this.fpsCounter.getFPS()
-      };
-
-      this.debugSystem.render(this.renderer, debugData);
-    }
+    const ecsRenderSystem = new ECSRenderSystem(this.renderer);
+    ecsRenderSystem.update(0, this.ecsWorld); // dt not used for rendering
 
     // Reset camera transform for UI rendering (screen space)
     this.camera.resetTransform(ctx);
@@ -495,7 +370,6 @@ export class Game {
       paused: this.gameLoop.isPaused(),
       useAccelerometer: this.inputManager.hasMotionPermission(),
       showPermissionPrompt: this.showPermissionButton,
-      debugEnabled: this.debugSystem.isFeatureEnabled(DebugFeature.Raycasts),
       hasMotionSensors: this.inputManager.hasMotionSensors(),
       hasMotionPermission: this.inputManager.hasMotionPermission(),
       score: this.scoreSystem.getCurrentScore(),
@@ -516,9 +390,8 @@ export class Game {
    * @returns True if player has fallen below camera view
    */
   private checkGameOver(): boolean {
-    const playerY = this.player.getPosition().y;
+    const playerY = this.ecsWorld.getComponent(this.ecsPlayerEntity, Transform.type)?.y ?? 0;
     const cameraBottom = this.camera.getPosition().y + this.renderer.getHeight();
-
     // Player fell below camera view
     return playerY > cameraBottom;
   }

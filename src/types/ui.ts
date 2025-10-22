@@ -12,7 +12,6 @@ export interface UIGameState {
   paused: boolean;
   useAccelerometer: boolean;
   showPermissionPrompt: boolean;
-  debugEnabled: boolean;
   hasMotionSensors: boolean;
   hasMotionPermission: boolean;
   score: number;

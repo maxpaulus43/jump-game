@@ -50,12 +50,12 @@ export function createPlatform(
   type: PlatformType = PlatformType.Standard
 ): Entity {
   const entity = world.createEntity();
-  
+
   // Add all platform components
   world.addComponent(entity, new Transform(x, y, 0));
-  world.addComponent(entity, new RectCollider(width, height, 0.3, 0.5));
-  world.addComponent(entity, new Renderable(PLATFORM_COLORS[type], 0)); // Low layer
+  world.addComponent(entity, new RectCollider(width, height, 0.3, 0.5, { bottom: false, left: false, right: false }));
+  world.addComponent(entity, new Renderable(PLATFORM_COLORS[type], 0));
   world.addComponent(entity, new Platform(type));
-  
+
   return entity;
 }

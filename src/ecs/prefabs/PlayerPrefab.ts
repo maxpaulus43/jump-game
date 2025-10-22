@@ -29,7 +29,7 @@ import {
  */
 export function createPlayer(world: ECSWorld, x: number, y: number): Entity {
   const entity = world.createEntity();
-  
+
   // Add all player components with defaults from Player.ts
   world.addComponent(entity, new Transform(x, y, 0));
   world.addComponent(entity, new Velocity(0, -1500)); // Initial jump velocity
@@ -37,6 +37,6 @@ export function createPlayer(world: ECSWorld, x: number, y: number): Entity {
   world.addComponent(entity, new Renderable('#ffbf00ff', 10)); // Yellow, high layer
   world.addComponent(entity, new PlayerController(3000, 1500, 1200, 800, false));
   world.addComponent(entity, new CameraTarget());
-  
+
   return entity;
 }
