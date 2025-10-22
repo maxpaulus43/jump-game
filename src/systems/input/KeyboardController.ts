@@ -73,4 +73,13 @@ export class KeyboardController implements InputController {
   private isAnyKeyPressed(keys: string[]): boolean {
     return keys.some(key => this.inputManager.isKeyPressed(key));
   }
+
+  /**
+   * Keyboard uses acceleration-based control for momentum physics
+   * 
+   * @returns False - keyboard input applies acceleration
+   */
+  useDirectVelocityControl(): boolean {
+    return false;
+  }
 }

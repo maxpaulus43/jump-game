@@ -75,11 +75,21 @@ export class Player implements Collidable {
     inputController: InputController,
     bounds: { width: number; height: number }
   ): void {
-    // Get acceleration from input controller
-    const inputAccel: Vec2 = inputController.getMovementInput();
+    // Get input from controller
+    const input: Vec2 = inputController.getMovementInput();
 
-    // Update velocity with input acceleration (x axis) and gravity (y axis)
-    this.velocity.x += inputAccel.x * dt;
+    // Apply input based on controller type
+    if (inputController.useDirectVelocityControl()) {
+      // Direct velocity control (accelerometer) - instant response
+      // Input directly sets horizontal velocity for immediate feedback
+      this.velocity.x = input.x;
+    } else {
+      // Acceleration-based control (keyboard) - momentum physics
+      // Input adds to velocity for smooth acceleration
+      this.velocity.x += input.x * dt;
+    }
+
+    // Gravity always uses acceleration (affects all control types)
     this.velocity.y += this.gravity * dt;
 
     // Update position 

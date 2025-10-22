@@ -21,6 +21,16 @@ export interface InputController {
    * @returns Acceleration vector representing desired movement direction and magnitude
    */
   getMovementInput(): Vec2;
+
+  /**
+   * Whether this controller should use direct velocity control
+   * 
+   * When true, the input directly sets velocity for instant response.
+   * When false, the input applies acceleration for momentum-based physics.
+   * 
+   * @returns True for direct velocity control (accelerometer), false for acceleration (keyboard)
+   */
+  useDirectVelocityControl(): boolean;
 }
 
 /**

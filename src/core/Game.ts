@@ -157,9 +157,9 @@ export class Game {
     });
 
     this.accelerometerController = new AccelerometerController(this.inputManager, {
-      acceleration: 1200,
-      sensitivity: 1.0,
-      deadZone: 0.1
+      acceleration: 800,  // Velocity magnitude (pixels/second) for direct control
+      sensitivity: 2.5,   // Increased sensitivity for more responsive tilt
+      deadZone: 0.08      // Slightly reduced dead zone for better responsiveness
     });
 
     // Set initial active controller based on device capabilities
