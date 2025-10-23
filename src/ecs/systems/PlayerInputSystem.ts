@@ -21,7 +21,7 @@ export class PlayerInputSystem extends System {
     this.inputController = inputController;
   }
 
-  update(dt: number, world: World): void {
+  update(_dt: number, world: World): void {
     const entities = world.query({
       with: [Transform.type, Velocity.type, PlayerController.type]
     });
