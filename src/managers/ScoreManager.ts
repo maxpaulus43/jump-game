@@ -8,25 +8,15 @@
 /**
  * ScoreSystem tracks player progress and high scores
  */
-export class ScoreSystem {
+export class ScoreManager {
   private currentScore: number = 0;
   private highScore: number = 0;
   private startY: number = 0;
-  private readonly STORAGE_KEY = 'bounceGameHighScore';
+  private readonly STORAGE_KEY = 'jumpGameHighScore';
 
   constructor() {
     // Load high score from localStorage on initialization
     this.highScore = this.loadHighScore();
-  }
-
-  /**
-   * Initialize score system for a new game
-   * 
-   * @param startY - Starting Y position (player's initial Y)
-   */
-  initialize(startY: number): void {
-    this.startY = startY;
-    this.currentScore = 0;
   }
 
   /**
@@ -63,15 +53,6 @@ export class ScoreSystem {
    */
   getHighScore(): number {
     return this.highScore;
-  }
-
-  /**
-   * Check if current score is a new high score
-   * 
-   * @returns True if current score equals high score and is greater than 0
-   */
-  isNewHighScore(): boolean {
-    return this.currentScore === this.highScore && this.currentScore > 0;
   }
 
   /**

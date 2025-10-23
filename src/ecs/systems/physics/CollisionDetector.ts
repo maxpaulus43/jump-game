@@ -14,8 +14,8 @@ import {
   Ray,
   RaycastResult,
   Collidable
-} from '../../types/collision.js';
-import { Vec2 } from '../../utils/Vec2.js';
+} from '../../../types/collision.js';
+import { Vec2 } from '../../../utils/Vec2.js';
 
 export class CollisionDetector {
   /**

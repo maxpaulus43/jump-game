@@ -46,7 +46,7 @@ export type ComponentType<T = any> = string & { __componentBrand?: T };
  * }
  */
 export interface ComponentClass<T = any> {
-  new (...args: any[]): T;
+  new(...args: any[]): T;
   type: ComponentType<T>;
 }
 
@@ -110,15 +110,15 @@ export interface QueryResult {
 export interface System {
   /** System name for debugging and identification */
   readonly name: string;
-  
+
   /** 
    * Update system logic (called every frame at fixed timestep)
    * 
    * @param dt - Delta time in seconds (fixed at 1/60 = 0.01667s)
    * @param world - The ECS world containing all entities and components
    */
-  update(dt: number, world: ECSWorld): void;
-  
+  update(dt: number, world: World): void;
+
   /** 
    * Optional cleanup when system is removed
    * Use this to release resources, clear listeners, etc.
@@ -136,7 +136,7 @@ export interface System {
  * const system = new systemClass();
  */
 export interface SystemClass {
-  new (): System;
+  new(): System;
 }
 
 /**
@@ -146,34 +146,34 @@ export interface SystemClass {
  * for entity/component management and queries. Full implementation
  * is in ECSWorld.ts.
  */
-export interface ECSWorld {
+export interface World {
   /** Create a new entity and return its ID */
   createEntity(): Entity;
-  
+
   /** Destroy an entity and remove all its components */
   destroyEntity(entity: Entity): void;
-  
+
   /** Add a component to an entity */
   addComponent<T>(entity: Entity, component: T): void;
-  
+
   /** Remove a component from an entity */
   removeComponent<T>(entity: Entity, type: ComponentType<T>): void;
-  
+
   /** Get a component from an entity (returns undefined if not present) */
   getComponent<T>(entity: Entity, type: ComponentType<T>): T | undefined;
-  
+
   /** Check if an entity has a component */
   hasComponent<T>(entity: Entity, type: ComponentType<T>): boolean;
-  
+
   /** Execute a query and return matching entities */
   query(query: Query): Entity[];
-  
+
   /** Count entities matching a query */
   countQuery(query: Query): number;
-  
+
   /** Check if any entities match a query */
   hasMatches(query: Query): boolean;
-  
+
   /** Clear all entities and components */
   clear(): void;
 }

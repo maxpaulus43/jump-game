@@ -1,5 +1,5 @@
-import { System } from '../System.js';
-import type { ECSWorld } from '../ECSWorld.js';
+import { System } from './System.js';
+import type { World } from '../World.js';
 import { Transform } from '../components/Transform.js';
 import { Velocity } from '../components/Velocity.js';
 import { CircleCollider } from '../components/CircleCollider.js';
@@ -21,7 +21,7 @@ export class BoundaryCollisionSystem extends System {
     this.renderer = renderer;
   }
 
-  update(_dt: number, world: ECSWorld): void {
+  update(_dt: number, world: World): void {
     const entities = world.query({
       with: [Transform.type, Velocity.type, CircleCollider.type]
     });

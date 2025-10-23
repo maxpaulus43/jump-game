@@ -1,5 +1,5 @@
-import { System } from '../System.js';
-import type { ECSWorld } from '../ECSWorld.js';
+import { System } from './System.js';
+import type { World } from '../World.js';
 import { Transform } from '../components/Transform.js';
 import { Velocity } from '../components/Velocity.js';
 import { PlayerController } from '../components/PlayerController.js';
@@ -13,7 +13,7 @@ import type { InputController } from '../../types/input.js';
  */
 export class PlayerInputSystem extends System {
   readonly name = 'PlayerInputSystem';
-  
+
   private inputController: InputController;
 
   constructor(inputController: InputController) {
@@ -21,7 +21,7 @@ export class PlayerInputSystem extends System {
     this.inputController = inputController;
   }
 
-  update(dt: number, world: ECSWorld): void {
+  update(dt: number, world: World): void {
     const entities = world.query({
       with: [Transform.type, Velocity.type, PlayerController.type]
     });
@@ -34,7 +34,7 @@ export class PlayerInputSystem extends System {
       const inputAccel = this.inputController.getMovementInput();
 
       // Apply horizontal acceleration
-      velocity.x += inputAccel.x * dt;
+      velocity.x = inputAccel.x;
 
       // Handle jump input (negative Y acceleration means jump/up input)
       // Only jump if grounded and there's upward input

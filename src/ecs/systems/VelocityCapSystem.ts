@@ -1,5 +1,5 @@
-import { System } from '../System.js';
-import type { ECSWorld } from '../ECSWorld.js';
+import { System } from './System.js';
+import type { World } from '../World.js';
 import { Velocity } from '../components/Velocity.js';
 import { PlayerController } from '../components/PlayerController.js';
 
@@ -12,7 +12,7 @@ import { PlayerController } from '../components/PlayerController.js';
 export class VelocityCapSystem extends System {
     readonly name = 'VelocityCapSystem';
 
-    update(_dt: number, world: ECSWorld): void {
+    update(_dt: number, world: World): void {
         const entities = world.query({
             with: [Velocity.type, PlayerController.type]
         });

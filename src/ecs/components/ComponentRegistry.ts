@@ -28,8 +28,8 @@
  * const transform = registry.get(entity, Transform.type);
  */
 
-import type { Entity, ComponentType, ComponentClass } from './types';
-import { SparseSet } from './SparseSet';
+import type { Entity, ComponentType, ComponentClass } from '../types';
+import { SparseSet } from '../SparseSet';
 
 /**
  * ComponentRegistry class
@@ -66,7 +66,7 @@ export class ComponentRegistry {
    */
   register<T>(componentClass: ComponentClass<T>): void {
     const type = componentClass.type;
-    
+
     if (!this.componentStores.has(type)) {
       this.componentStores.set(type, new SparseSet<T>());
       this.componentClasses.set(type, componentClass);
@@ -90,7 +90,7 @@ export class ComponentRegistry {
     // Components must have a constructor with a static 'type' property
     const ctor = (component as any).constructor as ComponentClass<T>;
     const type = ctor.type;
-    
+
     if (!type) {
       throw new Error(
         `Component class ${ctor.name} missing static 'type' property. ` +

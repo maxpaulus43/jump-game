@@ -1,11 +1,11 @@
-import { System } from '../System.js';
-import type { ECSWorld } from '../ECSWorld.js';
+import { System } from './System.js';
+import type { World } from '../World.js';
 import { Transform } from '../components/Transform.js';
 import { Velocity } from '../components/Velocity.js';
 import { CircleCollider } from '../components/CircleCollider.js';
 import { RectCollider, type CollidableSides } from '../components/RectCollider.js';
 import { PlayerController } from '../components/PlayerController.js';
-import { CollisionDetector } from '../../systems/physics/CollisionDetector.js';
+import { CollisionDetector } from './physics/CollisionDetector.js';
 import { CircleShape, RectangleShape, CollisionShapeType } from '../../types/collision.js';
 
 /**
@@ -17,7 +17,7 @@ import { CircleShape, RectangleShape, CollisionShapeType } from '../../types/col
 export class CollisionSystem extends System {
   readonly name = 'CollisionSystem';
 
-  update(_dt: number, world: ECSWorld): void {
+  update(_dt: number, world: World): void {
     // Get all entities with collision shapes
     const circles = world.query({
       with: [Transform.type, Velocity.type, CircleCollider.type]
@@ -96,11 +96,15 @@ export class CollisionSystem extends System {
               circleVelocity.x *= 0.9; // Friction
             }
 
-            // Check if this is a player landing on a platform (ground detection will handle isGrounded)
+            // Check if this is a player landing on a platform
             const playerController = world.getComponent(circleEntity, PlayerController.type);
             if (playerController && result.normal.y < -0.7) {
               // Landing on top of platform (normal points up)
-              // Ground detection system will set isGrounded
+              // Only set grounded if velocity is moving against the platform (downward)
+              // This prevents being grounded while jumping upward through platforms
+              if (circleVelocity.y >= -50) { // Small threshold for "nearly stationary"
+                playerController.isGrounded = true;
+              }
             }
           }
         }

@@ -1,4 +1,4 @@
-import { System, ECSWorld } from '../types.js';
+import { System, World } from '../types.js';
 import {
   Transform,
   Renderable,
@@ -25,7 +25,7 @@ export class RenderSystem implements System {
 
   constructor(private renderer: Renderer) { }
 
-  update(_dt: number, world: ECSWorld): void {
+  update(_dt: number, world: World): void {
     // Query for all renderable entities with circle colliders
     const circleEntities = world.query({
       with: [Transform.type, Renderable.type, CircleCollider.type]

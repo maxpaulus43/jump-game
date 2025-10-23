@@ -1,8 +1,8 @@
-import { System } from '../System.js';
-import type { ECSWorld } from '../ECSWorld.js';
+import { System } from './System.js';
+import type { World } from '../World.js';
 import { Transform } from '../components/Transform.js';
 import { CameraTarget } from '../components/CameraTarget.js';
-import type { Camera } from '../../systems/Camera.js';
+import type { Camera } from '../../managers/Camera.js';
 
 /**
  * CameraFollowSystem updates camera to follow entities with CameraTarget component
@@ -20,7 +20,7 @@ export class CameraFollowSystem extends System {
         this.camera = camera;
     }
 
-    update(dt: number, world: ECSWorld): void {
+    update(dt: number, world: World): void {
         // Find entity with CameraTarget component
         const targets = world.query({
             with: [Transform.type, CameraTarget.type]

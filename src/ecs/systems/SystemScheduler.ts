@@ -32,7 +32,7 @@
  * scheduler.update(dt, world);
  */
 
-import type { System, SystemClass, ECSWorld } from './types';
+import type { System, SystemClass, World } from '../types';
 
 /**
  * SystemScheduler class
@@ -65,7 +65,7 @@ export class SystemScheduler {
    */
   addSystem(system: System): boolean {
     const systemClass = system.constructor;
-    
+
     // Check if system of this type already exists
     if (this.systemMap.has(systemClass)) {
       console.warn(`System ${system.name} is already registered`);
@@ -91,7 +91,7 @@ export class SystemScheduler {
   removeSystem(system: System): boolean {
     const systemClass = system.constructor;
     const index = this.systems.indexOf(system);
-    
+
     if (index === -1) {
       return false;
     }
@@ -172,7 +172,7 @@ export class SystemScheduler {
    * // Called each frame by the game loop
    * scheduler.update(dt, world);
    */
-  update(dt: number, world: ECSWorld): void {
+  update(dt: number, world: World): void {
     for (const system of this.systems) {
       system.update(dt, world);
     }

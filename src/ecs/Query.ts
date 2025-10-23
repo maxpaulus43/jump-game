@@ -23,7 +23,7 @@
  */
 
 import type { Entity, ComponentType, Query, QueryResult } from './types';
-import type { ComponentRegistry } from './ComponentRegistry';
+import type { ComponentRegistry } from './components/ComponentRegistry';
 
 /**
  * Query execution engine

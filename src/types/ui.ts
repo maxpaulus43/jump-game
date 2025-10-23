@@ -8,7 +8,6 @@
  * Game state information for UI rendering
  */
 export interface UIGameState {
-  fps: number;
   paused: boolean;
   useAccelerometer: boolean;
   showPermissionPrompt: boolean;

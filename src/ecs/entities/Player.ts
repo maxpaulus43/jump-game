@@ -1,4 +1,4 @@
-import type { ECSWorld, Entity } from '../types.js';
+import type { World, Entity } from '../types.js';
 import {
   Transform,
   Velocity,
@@ -27,7 +27,7 @@ import {
  * @example
  * const player = createPlayer(world, 400, 300);
  */
-export function createPlayer(world: ECSWorld, x: number, y: number): Entity {
+export function createPlayer(world: World, x: number, y: number): Entity {
   const entity = world.createEntity();
 
   // Add all player components with defaults from Player.ts

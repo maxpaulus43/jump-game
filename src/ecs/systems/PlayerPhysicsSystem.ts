@@ -1,5 +1,5 @@
-import { System } from '../System.js';
-import type { ECSWorld } from '../ECSWorld.js';
+import { System } from './System.js';
+import type { World } from '../World.js';
 import { Velocity } from '../components/Velocity.js';
 import { PlayerController } from '../components/PlayerController.js';
 
@@ -12,7 +12,7 @@ import { PlayerController } from '../components/PlayerController.js';
 export class PlayerPhysicsSystem extends System {
   readonly name = 'PlayerPhysicsSystem';
 
-  update(dt: number, world: ECSWorld): void {
+  update(dt: number, world: World): void {
     const entities = world.query({
       with: [Velocity.type, PlayerController.type]
     });
@@ -22,12 +22,12 @@ export class PlayerPhysicsSystem extends System {
       const controller = world.getComponent(entity, PlayerController.type)!;
 
       // Apply gravity when not grounded
-      // Note: We still apply some gravity when grounded to maintain contact with platforms
+      // Note: Apply minimal gravity when grounded to maintain contact with platforms
       if (!controller.isGrounded) {
         velocity.y += controller.gravity * dt;
       } else {
         // Apply reduced gravity when grounded to maintain platform contact
-        velocity.y = -controller.jumpVelocity;
+        velocity.y += controller.gravity * dt * 0.1; // 10% gravity for contact
       }
     }
   }

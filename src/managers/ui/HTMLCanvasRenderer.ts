@@ -1,6 +1,6 @@
-import type { RenderContext } from '../types/index.js';
-import type { Renderer } from "../types/renderer.js"
-import type { Sprite } from "../types/sprite.js"
+import type { RenderContext } from '../../types/index.js';
+import type { Renderer } from "../../types/renderer.js"
+import type { Sprite } from "../../types/sprite.js"
 
 /**
  * Renderer class handles all Canvas API interactions

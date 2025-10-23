@@ -32,7 +32,7 @@
  * }
  */
 
-import type { System as ISystem, ECSWorld, Query } from './types';
+import type { System as ISystem, World, Query } from '../types';
 
 /**
  * Abstract base class for systems
@@ -66,7 +66,7 @@ export abstract class System implements ISystem {
    *   }
    * }
    */
-  abstract update(dt: number, world: ECSWorld): void;
+  abstract update(dt: number, world: World): void;
 
   /**
    * Optional cleanup when system is removed
@@ -96,7 +96,7 @@ export abstract class System implements ISystem {
    *   with: [Transform.type, Velocity.type]
    * });
    */
-  protected query(world: ECSWorld, query: Query): number[] {
+  protected query(world: World, query: Query): number[] {
     return world.query(query);
   }
 
@@ -114,7 +114,7 @@ export abstract class System implements ISystem {
    *   // At least one player exists
    * }
    */
-  protected hasMatches(world: ECSWorld, query: Query): boolean {
+  protected hasMatches(world: World, query: Query): boolean {
     return world.hasMatches(query);
   }
 
@@ -128,7 +128,7 @@ export abstract class System implements ISystem {
    * @example
    * const enemyCount = this.countQuery(world, { with: [Enemy.type] });
    */
-  protected countQuery(world: ECSWorld, query: Query): number {
+  protected countQuery(world: World, query: Query): number {
     return world.countQuery(query);
   }
 

@@ -29,7 +29,7 @@
  * console.log(manager.isAlive(entity2)); // true
  */
 
-import type { Entity } from './types';
+import type { Entity } from '../types';
 
 /**
  * EntityManager class

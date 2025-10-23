@@ -31,18 +31,18 @@
  * }
  */
 
-import type { Entity, ComponentType, Query, ECSWorld as IECSWorld } from './types';
-import { EntityManager } from './EntityManager';
-import { ComponentRegistry } from './ComponentRegistry';
+import type { Entity, ComponentType, Query, World as IECSWorld } from './types';
+import { EntityManager } from './entities/EntityManager';
+import { ComponentRegistry } from './components/ComponentRegistry';
 import { QueryExecutor } from './Query';
 
 /**
- * ECSWorld class
+ * World class
  * 
  * The main ECS world container. Provides the public API for entity/component
  * management and queries.
  */
-export class ECSWorld implements IECSWorld {
+export class World implements IECSWorld {
   /**
    * Entity lifecycle manager
    */
@@ -100,7 +100,7 @@ export class ECSWorld implements IECSWorld {
 
     // Remove all components first
     this.componentRegistry.removeAllComponents(entity);
-    
+
     // Then mark entity as dead
     this.entityManager.destroy(entity);
   }

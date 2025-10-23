@@ -1,4 +1,4 @@
-import type { ECSWorld, Entity } from '../types.js';
+import type { World, Entity } from '../types.js';
 import {
   Transform,
   RectCollider,
@@ -42,7 +42,7 @@ const PLATFORM_COLORS: Record<PlatformType, string> = {
  * const movingPlatform = createPlatform(world, 200, 400, 100, 20, PlatformType.Moving);
  */
 export function createPlatform(
-  world: ECSWorld,
+  world: World,
   x: number,
   y: number,
   width: number,

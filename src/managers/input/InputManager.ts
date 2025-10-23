@@ -119,7 +119,7 @@ export class InputManager {
     const y = Math.max(-1, Math.min(1, beta / maxTilt));
 
     // Apply dead zone to prevent drift
-    const deadZone = 0.1;
+    const deadZone = 0.05;
     const finalX = Math.abs(x) < deadZone ? 0 : x;
     const finalY = Math.abs(y) < deadZone ? 0 : y;
 

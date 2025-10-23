@@ -1,10 +1,10 @@
-import { System } from '../System.js';
-import type { ECSWorld } from '../ECSWorld.js';
+import { System } from './System.js';
+import type { World } from '../World.js';
 import { Transform } from '../components/Transform.js';
 import { CameraTarget } from '../components/CameraTarget.js';
 import { Platform, PlatformType } from '../components/Platform.js';
-import { createPlatform } from '../prefabs/PlatformPrefab.js';
-import type { Camera } from '../../systems/Camera.js';
+import { createPlatform } from '../entities/Platform.js';
+import type { Camera } from '../../managers/Camera.js';
 import type { Renderer } from '../../types/renderer.js';
 
 /**
@@ -45,7 +45,7 @@ export class PlatformSpawnSystem extends System {
         this.despawnDistance = config?.despawnDistance || 1000;
     }
 
-    update(_dt: number, world: ECSWorld): void {
+    update(_dt: number, world: World): void {
         // Initialize if needed
         if (!this.initialized) {
             this.initialize(world);
@@ -78,7 +78,7 @@ export class PlatformSpawnSystem extends System {
     /**
      * Initialize spawner with player position
      */
-    private initialize(world: ECSWorld): void {
+    private initialize(world: World): void {
         const playerTargets = world.query({
             with: [Transform.type, CameraTarget.type]
         });
@@ -99,7 +99,7 @@ export class PlatformSpawnSystem extends System {
     /**
      * Spawn a batch of platforms (3-5 at a time)
      */
-    private spawnPlatformBatch(world: ECSWorld): void {
+    private spawnPlatformBatch(world: World): void {
         const batchSize = this.randomInt(3, 5);
         for (let i = 0; i < batchSize; i++) {
             this.spawnPlatform(world);
@@ -109,7 +109,7 @@ export class PlatformSpawnSystem extends System {
     /**
      * Spawn a single platform with difficulty scaling
      */
-    private spawnPlatform(world: ECSWorld): void {
+    private spawnPlatform(world: World): void {
         // Calculate difficulty based on height climbed
         const difficulty = this.calculateDifficulty();
 
@@ -190,7 +190,7 @@ export class PlatformSpawnSystem extends System {
     /**
      * Remove platforms that have fallen below the camera view
      */
-    private despawnPlatformsBelowCamera(world: ECSWorld, cameraY: number): void {
+    private despawnPlatformsBelowCamera(world: World, cameraY: number): void {
         const despawnThreshold = cameraY + this.despawnDistance;
         const platforms = world.query({
             with: [Transform.type, Platform.type]

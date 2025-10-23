@@ -1,11 +1,12 @@
-import { System } from '../System.js';
-import type { ECSWorld } from '../ECSWorld.js';
+import { System } from './System.js';
+import type { World } from '../World.js';
 import { Transform } from '../components/Transform.js';
+import { Velocity } from '../components/Velocity.js';
 import { CircleCollider } from '../components/CircleCollider.js';
 import { RectCollider } from '../components/RectCollider.js';
 import { PlayerController } from '../components/PlayerController.js';
 import { Platform } from '../components/Platform.js';
-import { CollisionDetector } from '../../systems/physics/CollisionDetector.js';
+import { CollisionDetector } from './physics/CollisionDetector.js';
 import { Ray, RectangleShape, CollisionShapeType } from '../../types/collision.js';
 
 /**
@@ -17,7 +18,7 @@ import { Ray, RectangleShape, CollisionShapeType } from '../../types/collision.j
 export class GroundDetectionSystem extends System {
     readonly name = 'GroundDetectionSystem';
 
-    update(_dt: number, world: ECSWorld): void {
+    update(_dt: number, world: World): void {
         // Get all players
         const players = world.query({
             with: [Transform.type, PlayerController.type, CircleCollider.type]
@@ -32,6 +33,7 @@ export class GroundDetectionSystem extends System {
             const transform = world.getComponent(player, Transform.type)!;
             const controller = world.getComponent(player, PlayerController.type)!;
             const collider = world.getComponent(player, CircleCollider.type)!;
+            const velocity = world.getComponent(player, Velocity.type)!;
 
             // Create ray pointing downward from player center
             const rayDistance = collider.radius + 5; // Small threshold for detecting ground
@@ -64,8 +66,12 @@ export class GroundDetectionSystem extends System {
                     // Check if the platform is below the player (normal points up)
                     // Normal.y should be negative (pointing up in canvas coordinates)
                     if (result.normal.y < -0.7) {
-                        isGrounded = true;
-                        break;
+                        // Only consider grounded if moving downward or nearly stationary
+                        // This prevents being grounded while jumping upward through platforms
+                        if (velocity.y >= -50) { // Small threshold for "nearly stationary"
+                            isGrounded = true;
+                            break;
+                        }
                     }
                 }
             }

@@ -1,6 +1,6 @@
 import { Game } from './src/core/Game.js';
-import { HTMLCanvasRenderer as HTMLCanvasRenderer } from './src/systems/HTMLCanvasRenderer.js';
-import { InputManager } from './src/systems/input/InputManager.js';
+import { HTMLCanvasRenderer as HTMLCanvasRenderer } from './src/managers/ui/HTMLCanvasRenderer.js';
+import { InputManager } from './src/managers/input/InputManager.js';
 
 /**
  * Entry point for the game
@@ -16,9 +16,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const canvasId = 'gameCanvas';
     const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
     const renderer = new HTMLCanvasRenderer(canvas)
-
     const inputManager = new InputManager();
-
     const game = new Game(renderer, inputManager);
 
     // Make game accessible from console for debugging
@@ -139,7 +137,6 @@ function createStartButton(game: Game, inputManager: InputManager): void {
         console.log('Permission granted!');
         button.textContent = 'Starting Game...';
         overlay.remove();
-        game.toggleAccelerometer()
         game.start();
         console.log('Game started successfully!');
       } else {
@@ -171,49 +168,10 @@ function createStartButton(game: Game, inputManager: InputManager): void {
     handleButtonPress();
   });
 
-  // Create skip button for keyboard users
-  const skipButton = document.createElement('button');
-  skipButton.textContent = 'Use Keyboard Instead';
-  skipButton.style.cssText = `
-    background-color: transparent;
-    color: #aaaaaa;
-    border: 1px solid #aaaaaa;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-family: monospace;
-    border-radius: 8px;
-    cursor: pointer;
-    margin-top: 20px;
-    transition: color 0.2s, border-color 0.2s;
-  `;
-
-  skipButton.addEventListener('mouseenter', () => {
-    skipButton.style.color = '#ffffff';
-    skipButton.style.borderColor = '#ffffff';
-  });
-  skipButton.addEventListener('mouseleave', () => {
-    skipButton.style.color = '#aaaaaa';
-    skipButton.style.borderColor = '#aaaaaa';
-  });
-
-  const handleSkipPress = () => {
-    console.log('Skipping motion controls');
-    overlay.remove();
-    game.start();
-    console.log('Game started with keyboard controls');
-  };
-
-  skipButton.addEventListener('click', handleSkipPress);
-  skipButton.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    handleSkipPress();
-  });
-
   // Assemble overlay
   overlay.appendChild(title);
   overlay.appendChild(description);
   overlay.appendChild(button);
-  overlay.appendChild(skipButton);
 
   // Add to page
   document.body.appendChild(overlay);

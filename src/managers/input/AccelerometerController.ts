@@ -61,13 +61,4 @@ export class AccelerometerController implements InputController {
 
     return input;
   }
-
-  /**
-   * Accelerometer uses direct velocity control for instant response
-   * 
-   * @returns True - tilt input directly sets velocity
-   */
-  useDirectVelocityControl(): boolean {
-    return true;
-  }
 }
