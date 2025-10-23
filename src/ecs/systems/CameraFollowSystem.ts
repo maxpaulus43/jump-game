@@ -9,11 +9,14 @@ import type { Camera } from '../../managers/Camera.js';
  * 
  * Typically used to make the camera follow the player
  * Only one entity should have CameraTarget component at a time
+ * 
+ * Camera only follows upward movement (standard platformer behavior)
  */
 export class CameraFollowSystem extends System {
     readonly name = 'CameraFollowSystem';
 
     private camera: Camera;
+    private lastTargetY: number | null = null;
 
     constructor(camera: Camera) {
         super();
@@ -31,8 +34,15 @@ export class CameraFollowSystem extends System {
             const target = targets[0];
             const transform = world.getComponent(target, Transform.type)!;
 
-            // Update camera to follow target's Y position
-            this.camera.update(dt, transform.y);
+            // Only update camera if player is moving upward (decreasing Y)
+            // or if this is the first update
+            if (this.lastTargetY === null || transform.y < this.lastTargetY) {
+                // Update camera to follow target's Y position
+                this.camera.update(dt, transform.y);
+            }
+
+            // Track last Y position for next frame
+            this.lastTargetY = transform.y;
         }
     }
 }
