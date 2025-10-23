@@ -3,6 +3,8 @@ import { InputManager } from '../managers/input/InputManager.js';
 import { AccelerometerController } from '../managers/input/AccelerometerController.js';
 import { CameraManager } from '../managers/CameraManager.js';
 import { ScoreManager } from '../managers/ScoreManager.js';
+import { HUDRenderer } from '../managers/ui/HUDRenderer.js';
+import { UIManager } from '../managers/ui/UIManager.js';
 import { Renderer } from '../types/renderer.js';
 import { World } from '../ecs/World.js';
 import { SystemScheduler } from '../ecs/systems/SystemScheduler.js';
@@ -38,6 +40,8 @@ export class Game {
   private scoreManager: ScoreManager;
   private renderManager: RenderSystem;
   private inputController: AccelerometerController;
+  private hudRenderer: HUDRenderer;
+  private uiManager: UIManager;
 
   // Game state
   private gameOver: boolean = false;
@@ -63,6 +67,36 @@ export class Game {
       sensitivity: 2.4,   // Increased sensitivity for more responsive tilt
       deadZone: 0.0      // Slightly reduced dead zone for better responsiveness
     });
+
+    // Initialize UI systems
+    this.hudRenderer = new HUDRenderer(
+      this.renderer,
+      this.scoreManager,
+      {
+        colors: {
+          primary: '#00ff88',
+          secondary: '#888888',
+          highlight: '#ffffff'
+        }
+      }
+    );
+
+    this.uiManager = new UIManager({
+      onResume: () => this.resume(),
+      onRestart: () => this.restart(),
+      onQuit: () => {
+        this.stop();
+        window.location.reload();
+      }
+    });
+
+    // Add pause key listener
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+        this.togglePause();
+      }
+    });
+
     this.initializeECS();
   }
 
@@ -113,16 +147,33 @@ export class Game {
    * @param dt - Fixed delta time in seconds
    */
   private update(dt: number): void {
-    // // Don't update game logic if game over
-    if (this.gameOver) {
+    // Don't update game logic if game over or paused
+    if (this.gameOver || this.uiManager.getState() !== 'playing') {
       return;
     }
+
+    // Update score based on player position
+    const playerTransform = this.world.getComponent(
+      this.playerEntity,
+      Transform.type
+    );
+    if (playerTransform) {
+      this.scoreManager.update(playerTransform.y);
+    }
+
+    // Update HUD FPS counter
+    this.hudRenderer.updateFPS(dt);
+
     // Check for game over
     if (this.checkGameOver()) {
       this.gameOver = true;
-      console.log('Game Over! Final score:', this.scoreManager.getCurrentScore());
+      const score = this.scoreManager.getCurrentScore();
+      const highScore = this.scoreManager.getHighScore();
+      this.uiManager.showGameOver(score, highScore);
+      console.log('Game Over! Final score:', score);
     }
-    // Update ECS physics systems (runs in parallel with OOP)
+
+    // Update ECS physics systems
     this.systemScheduler.update(dt, this.world);
   }
 
@@ -142,6 +193,9 @@ export class Game {
 
     // Reset camera transform for UI rendering (screen space)
     this.camera.resetTransform(ctx);
+
+    // Render HUD
+    this.hudRenderer.render();
   }
 
   /**
@@ -178,10 +232,10 @@ export class Game {
   }
 
   /**
- * Check if game over condition is met (player fell below camera)
- * 
- * @returns True if player has fallen below camera view
- */
+  * Check if game over condition is met (player fell below camera)
+  * 
+  * @returns True if player has fallen below camera view
+  */
   private checkGameOver(): boolean {
     const playerY = this.world.getComponent(this.playerEntity, Transform.type)?.y ?? 0;
     const cameraBottom = this.camera.getPosition().y + this.renderer.getHeight();
@@ -190,13 +244,34 @@ export class Game {
   }
 
   /**
+   * Toggle pause state
+   */
+  private togglePause(): void {
+    if (this.gameOver) return;
+
+    if (this.uiManager.getState() === 'paused') {
+      this.uiManager.hideOverlay();
+      this.resume();
+    } else if (this.uiManager.getState() === 'playing') {
+      this.pause();
+      this.uiManager.showPauseMenu();
+    }
+  }
+
+  /**
    * Restart the game
    */
   private restart(): void {
     console.log('Restarting game...');
-    // Reset score system (keeps high score)
+    this.gameOver = false;
+    this.camera = new CameraManager({
+      smoothing: 0.1,
+      followThreshold: this.renderer.getHeight() / 2,
+      enabled: true
+    }, this.renderer.getHeight());
     this.scoreManager.reset();
     this.initializeECS();
+    this.resume();
   }
 
   /**

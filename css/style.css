@@ -20,3 +20,18 @@ body {
   height: 100%;
   background-color: #1a1a2e;
 }
+
+/* UI Overlay Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Button press effect */
+button:active {
+  transform: scale(0.95) !important;
+}
