@@ -75,10 +75,6 @@ export class CollisionSystem extends System {
             continue;
           }
 
-          // Resolve collision by pushing circle out of rectangle
-          circleTransform.x += result.normal.x * result.depth;
-          circleTransform.y += result.normal.y * result.depth;
-
           // Apply bounce/friction based on collision normal
           const normalDotVelocity =
             circleVelocity.x * result.normal.x +
@@ -86,6 +82,10 @@ export class CollisionSystem extends System {
 
           // Only apply response if moving into the surface
           if (normalDotVelocity < 0) {
+            // Resolve collision by pushing circle out of rectangle
+            circleTransform.x += result.normal.x * result.depth;
+            circleTransform.y += result.normal.y * result.depth;
+
             // Remove velocity component along normal (stop penetration)
             circleVelocity.x -= result.normal.x * normalDotVelocity;
             circleVelocity.y -= result.normal.y * normalDotVelocity;
