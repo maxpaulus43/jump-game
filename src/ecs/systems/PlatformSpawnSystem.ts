@@ -4,7 +4,7 @@ import { Transform } from '../components/Transform.js';
 import { CameraTarget } from '../components/CameraTarget.js';
 import { Platform, PlatformType } from '../components/Platform.js';
 import { createPlatform } from '../entities/Platform.js';
-import type { Camera } from '../../managers/Camera.js';
+import type { CameraManager } from '../../managers/CameraManager.js';
 import type { Renderer } from '../../types/renderer.js';
 
 /**
@@ -26,7 +26,7 @@ export interface PlatformSpawnSystemConfig {
 export class PlatformSpawnSystem extends System {
     readonly name = 'PlatformSpawnSystem';
 
-    private camera: Camera;
+    private camera: CameraManager;
     private spawnDistance: number;
     private despawnDistance: number;
     private worldWidth: number;
@@ -37,7 +37,7 @@ export class PlatformSpawnSystem extends System {
     private lastPlatformWidth: number = 150;
     private initialized: boolean = false;
 
-    constructor(camera: Camera, renderer: Renderer, config?: Partial<PlatformSpawnSystemConfig>) {
+    constructor(camera: CameraManager, renderer: Renderer, config?: Partial<PlatformSpawnSystemConfig>) {
         super();
         this.camera = camera;
         this.worldWidth = config?.worldWidth || renderer.getWidth();

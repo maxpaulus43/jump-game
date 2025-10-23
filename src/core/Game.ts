@@ -1,7 +1,7 @@
 import { GameLoop } from './GameLoop.js';
 import { InputManager } from '../managers/input/InputManager.js';
 import { AccelerometerController } from '../managers/input/AccelerometerController.js';
-import { Camera } from '../managers/Camera.js';
+import { CameraManager } from '../managers/CameraManager.js';
 import { ScoreManager } from '../managers/ScoreManager.js';
 import { Renderer } from '../types/renderer.js';
 import { World } from '../ecs/World.js';
@@ -34,7 +34,7 @@ export class Game {
   private playerEntity!: Entity;
 
   // Manager
-  private camera!: Camera;
+  private camera!: CameraManager;
   private scoreManager: ScoreManager;
   private renderManager: RenderSystem;
   private inputController: AccelerometerController;
@@ -53,7 +53,7 @@ export class Game {
       targetFPS: 60,
       maxDeltaTime: 0.25 // Prevent spiral of death
     });
-    this.camera = new Camera({
+    this.camera = new CameraManager({
       smoothing: 0.1,
       followThreshold: h / 2,
       enabled: true

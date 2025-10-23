@@ -21,7 +21,7 @@ export interface CameraBounds {
 /**
  * Camera interface for rendering systems
  */
-export interface ICamera {
+export interface ICameraManager {
   /** Get current camera Y offset in world space */
   getOffsetY(): number;
   /** Update camera position based on target */

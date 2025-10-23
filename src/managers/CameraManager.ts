@@ -1,5 +1,5 @@
 import { Vec2 } from '../utils/Vec2.js';
-import type { CameraConfig, CameraBounds, ICamera } from '../types/camera.js';
+import type { CameraConfig, CameraBounds, ICameraManager } from '../types/camera.js';
 
 /**
  * Camera system for smooth vertical player tracking
@@ -7,7 +7,7 @@ import type { CameraConfig, CameraBounds, ICamera } from '../types/camera.js';
  * Follows the player's Y position with lerp-based smoothing, activating only
  * when the player exceeds the screen center threshold. X-axis remains fixed.
  */
-export class Camera implements ICamera {
+export class CameraManager implements ICameraManager {
   private position: Vec2;
   private smoothing: number;
   private followThreshold: number;

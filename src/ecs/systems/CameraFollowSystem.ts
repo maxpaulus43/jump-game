@@ -2,7 +2,7 @@ import { System } from './System.js';
 import type { World } from '../World.js';
 import { Transform } from '../components/Transform.js';
 import { CameraTarget } from '../components/CameraTarget.js';
-import type { Camera } from '../../managers/Camera.js';
+import type { CameraManager } from '../../managers/CameraManager.js';
 
 /**
  * CameraFollowSystem updates camera to follow entities with CameraTarget component
@@ -15,10 +15,10 @@ import type { Camera } from '../../managers/Camera.js';
 export class CameraFollowSystem extends System {
     readonly name = 'CameraFollowSystem';
 
-    private camera: Camera;
+    private camera: CameraManager;
     private lastTargetY: number | null = null;
 
-    constructor(camera: Camera) {
+    constructor(camera: CameraManager) {
         super();
         this.camera = camera;
     }
