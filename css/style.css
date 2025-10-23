@@ -8,7 +8,8 @@
 /* Full viewport body */
 body {
   width: 100vw;
-  height: 100vh;
+  height: 100vh; /* Fallback for older browsers */
+  height: 100dvh; /* Dynamic viewport height for modern browsers (iOS Safari 15.4+) */
   overflow: hidden;
   background-color: #000000;
 }

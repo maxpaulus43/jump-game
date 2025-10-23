@@ -68,6 +68,10 @@ export class HTMLCanvasRenderer implements Renderer {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
 
+    // Sync body height to prevent iOS Safari viewport stretching
+    // This ensures consistency between CSS viewport units and JS measurements
+    document.body.style.height = `${window.innerHeight}px`;
+
     this.width = this.canvas.width;
     this.height = this.canvas.height;
   }
