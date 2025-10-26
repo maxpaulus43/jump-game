@@ -51,7 +51,33 @@ export interface SpriteReference {
 }
 
 /**
- * Animation frame definition (placeholder for future animation support)
+ * Animation playback mode
+ */
+export enum AnimationPlaybackMode {
+  /** Play once and stop on last frame */
+  Once = 'once',
+  /** Loop continuously */
+  Loop = 'loop',
+  /** Play forward then backward repeatedly */
+  PingPong = 'pingpong'
+}
+
+/**
+ * Current state of animation playback
+ */
+export enum AnimationState {
+  /** Animation is playing */
+  Playing = 'playing',
+  /** Animation is paused (can resume) */
+  Paused = 'paused',
+  /** Animation is stopped (reset to first frame) */
+  Stopped = 'stopped',
+  /** Animation completed (one-shot animations only) */
+  Complete = 'complete'
+}
+
+/**
+ * Animation frame definition
  */
 export interface AnimationFrame {
   /** Sprite reference for this frame */
@@ -61,13 +87,44 @@ export interface AnimationFrame {
 }
 
 /**
- * Animation definition (placeholder for future animation support)
+ * Animation definition
  */
 export interface Animation {
   /** Unique name for this animation */
   name: string;
   /** Array of frames in the animation */
   frames: AnimationFrame[];
-  /** Whether the animation should loop */
-  loop: boolean;
+  /** Playback mode (loop, once, pingpong) */
+  mode: AnimationPlaybackMode;
+}
+
+/**
+ * Animation event callback types
+ */
+export type AnimationEventCallback = (animationName: string) => void;
+
+/**
+ * Animation event handlers
+ */
+export interface AnimationEventHandlers {
+  /** Called when animation completes (one-shot only) */
+  onComplete?: AnimationEventCallback;
+  /** Called each time animation loops */
+  onLoop?: AnimationEventCallback;
+  /** Called when animation starts playing */
+  onStart?: AnimationEventCallback;
+  /** Called when animation is stopped */
+  onStop?: AnimationEventCallback;
+}
+
+/**
+ * Configuration for loading multiple animations
+ */
+export interface AnimationConfig {
+  /** Default animation to play on start */
+  defaultAnimation: string;
+  /** Map of animation definitions */
+  animations: Record<string, Animation>;
+  /** Optional event handlers */
+  handlers?: AnimationEventHandlers;
 }

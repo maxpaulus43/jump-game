@@ -1,4 +1,4 @@
-import { Sprite } from "./sprite";
+import { Sprite } from "../ecs/components/Sprite";
 
 export interface Renderer {
     clear(): void;

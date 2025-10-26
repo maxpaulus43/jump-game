@@ -20,6 +20,8 @@ import { GroundDetectionSystem } from '../ecs/systems/GroundDetectionSystem.js';
 import { VelocityCapSystem } from '../ecs/systems/VelocityCapSystem.js';
 import { CameraFollowSystem } from '../ecs/systems/CameraFollowSystem.js';
 import { PlatformSpawnSystem } from '../ecs/systems/PlatformSpawnSystem.js';
+import { PlayerAnimationSystem } from '../ecs/systems/PlayerAnimationSystem.js';
+import { AnimationSystem } from '../ecs/systems/AnimationSystem.js';
 import { RenderSystem } from '../ecs/systems/RenderSystem.js';
 import { SpriteSheetManager } from '../managers/SpriteSheetManager.js';
 import { createPlaceholderSpriteSheet, createSpriteSheetConfig } from '../utils/PlaceholderSpriteSheet.js';
@@ -117,8 +119,27 @@ export class Game {
       },
     };
 
+    // Player animation sprite sheet (64x64 frames)
+    // Expected layout: idle_0, idle_1, idle_2, idle_3 (row 0), jump_0, jump_1 (row 1)
+    const idleFrames: Record<string, any> = {};
+    for (let i = 0; i < 13; i++) {
+      idleFrames[`idle_${i}`] = { x: i * 32, y: 0, width: 32, height: 32 }
+    }
+    console.log(idleFrames);
+    const playerAnimationConfig = {
+      id: 'player_animations',
+      imagePath: 'assets/adventurer_sprite_sheet.png',
+      frames: {
+        ...idleFrames,
+        // Jump animation frames (2 frames in second row)
+        'jump_0': { x: 0, y: 32, width: 32, height: 32 },
+        'jump_1': { x: 32, y: 32, width: 32, height: 32 },
+      },
+    };
+
     try {
       await spriteManager.loadSpriteSheet(spriteSheetConfig);
+      await spriteManager.loadSpriteSheet(playerAnimationConfig);
       console.log('Sprite system initialized');
     } catch (error) {
       console.error('Failed to load sprite sheets:', error);
@@ -157,6 +178,10 @@ export class Game {
       despawnDistance: 1000,
       initialPlatformCount: 8
     }));
+    // 10. Player Animation - state-based animation switching
+    this.systemScheduler.addSystem(new PlayerAnimationSystem());
+    // 11. Animation - update sprite animations (MUST run before RenderSystem)
+    this.systemScheduler.addSystem(new AnimationSystem());
 
     console.log('ECS initialized with', this.world.getEntityCount(), 'entities');
     console.log('Registered', this.systemScheduler['systems'].length, 'ECS systems');
