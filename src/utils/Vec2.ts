@@ -50,10 +50,7 @@ export class Vec2 {
    */
   divide(scalar: number): this {
     if (scalar === 0) {
-      console.warn('Vec2.divide: Division by zero, returning zero vector');
-      this.x = 0;
-      this.y = 0;
-      return this;
+      throw new Error('Vec2.divide: Division by zero');
     }
     this.x /= scalar;
     this.y /= scalar;
@@ -78,20 +75,10 @@ export class Vec2 {
   }
 
   /**
-   * Set this vector's components (mutates this)
-   * @returns this for chaining
-   */
-  set(x: number, y: number): this {
-    this.x = x;
-    this.y = y;
-    return this;
-  }
-
-  /**
    * Copy another vector's values into this vector (mutates this)
    * @returns this for chaining
    */
-  copy(other: Vec2): this {
+  copyFrom(other: Vec2): this {
     this.x = other.x;
     this.y = other.y;
     return this;

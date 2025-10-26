@@ -104,14 +104,6 @@ export class CameraManager implements ICameraManager {
   }
 
   /**
-   * Get current camera Y offset in world space
-   * @returns Current Y offset
-   */
-  getOffsetY(): number {
-    return this.position.y;
-  }
-
-  /**
    * Get camera position as object
    * @returns Camera position {x, y}
    */
@@ -120,37 +112,5 @@ export class CameraManager implements ICameraManager {
       x: this.position.x,
       y: this.position.y
     };
-  }
-
-  /**
-   * Set camera bounds to limit vertical movement
-   * @param bounds Camera bounds with min/max Y
-   */
-  setBounds(bounds: CameraBounds): void {
-    this.bounds = bounds;
-  }
-
-  /**
-   * Check if camera is actively following target
-   * @returns True if camera has been activated
-   */
-  isFollowing(): boolean {
-    return this.enabled && this.isActive;
-  }
-
-  /**
-   * Enable or disable camera
-   * @param enabled Whether camera should be enabled
-   */
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled;
-  }
-
-  /**
-   * Reset camera to initial state
-   */
-  reset(): void {
-    this.position.set(0, 0);
-    this.isActive = false;
   }
 }

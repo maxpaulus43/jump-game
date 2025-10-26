@@ -57,11 +57,13 @@ export class Game {
       targetFPS: 60,
       maxDeltaTime: 0.25 // Prevent spiral of death
     });
+
     this.camera = new CameraManager({
       smoothing: 0.1,
       followThreshold: h / 2,
       enabled: true
     }, h);
+
     this.inputController = new AccelerometerController(this.inputManager, {
       acceleration: 800,  // Velocity magnitude (pixels/second) for direct control
       sensitivity: 2.4,   // Increased sensitivity for more responsive tilt
@@ -90,20 +92,13 @@ export class Game {
       }
     });
 
-    // Add pause key listener
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
-        this.togglePause();
-      }
-    });
-
-    this.initializeECS();
+    this.initialize();
   }
 
   /**
    * Initialize ECS world and systems (Phase 3.2 - full system integration)
    */
-  private initializeECS(): void {
+  private initialize(): void {
     // Create ECS world
     this.world = new World();
     this.systemScheduler = new SystemScheduler();
@@ -244,21 +239,6 @@ export class Game {
   }
 
   /**
-   * Toggle pause state
-   */
-  private togglePause(): void {
-    if (this.gameOver) return;
-
-    if (this.uiManager.getState() === 'paused') {
-      this.uiManager.hideOverlay();
-      this.resume();
-    } else if (this.uiManager.getState() === 'playing') {
-      this.pause();
-      this.uiManager.showPauseMenu();
-    }
-  }
-
-  /**
    * Restart the game
    */
   private restart(): void {
@@ -270,14 +250,7 @@ export class Game {
       enabled: true
     }, this.renderer.getHeight());
     this.scoreManager.reset();
-    this.initializeECS();
+    this.initialize();
     this.resume();
-  }
-
-  /**
-   * Get the game loop instance
-   */
-  getGameLoop(): GameLoop {
-    return this.gameLoop;
   }
 }

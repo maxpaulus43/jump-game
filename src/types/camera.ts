@@ -22,8 +22,6 @@ export interface CameraBounds {
  * Camera interface for rendering systems
  */
 export interface ICameraManager {
-  /** Get current camera Y offset in world space */
-  getOffsetY(): number;
   /** Update camera position based on target */
   update(dt: number, targetY: number): void;
   /** Apply camera transform to renderer context */
@@ -32,8 +30,4 @@ export interface ICameraManager {
   resetTransform(ctx: CanvasRenderingContext2D): void;
   /** Get camera position */
   getPosition(): { x: number; y: number };
-  /** Set camera bounds */
-  setBounds(bounds: CameraBounds): void;
-  /** Check if camera is following target */
-  isFollowing(): boolean;
 }
