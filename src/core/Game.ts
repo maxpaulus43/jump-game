@@ -21,6 +21,8 @@ import { VelocityCapSystem } from '../ecs/systems/VelocityCapSystem.js';
 import { CameraFollowSystem } from '../ecs/systems/CameraFollowSystem.js';
 import { PlatformSpawnSystem } from '../ecs/systems/PlatformSpawnSystem.js';
 import { RenderSystem } from '../ecs/systems/RenderSystem.js';
+import { SpriteSheetManager } from '../managers/SpriteSheetManager.js';
+import { createPlaceholderSpriteSheet } from '../utils/PlaceholderSpriteSheet.js';
 
 /**
  * Game class orchestrates all game systems
@@ -98,7 +100,18 @@ export class Game {
   /**
    * Initialize ECS world and systems (Phase 3.2 - full system integration)
    */
-  private initialize(): void {
+  private async initialize(): Promise<void> {
+    // Initialize sprite system
+    const spriteManager = SpriteSheetManager.getInstance();
+    const placeholderConfig = createPlaceholderSpriteSheet();
+    
+    try {
+      await spriteManager.loadSpriteSheet(placeholderConfig);
+      console.log('Sprite system initialized');
+    } catch (error) {
+      console.error('Failed to load sprite sheets:', error);
+    }
+
     // Create ECS world
     this.world = new World();
     this.systemScheduler = new SystemScheduler();

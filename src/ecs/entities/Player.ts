@@ -5,7 +5,8 @@ import {
   CircleCollider,
   Renderable,
   PlayerController,
-  CameraTarget
+  CameraTarget,
+  Sprite
 } from '../components/index.js';
 
 /**
@@ -34,7 +35,8 @@ export function createPlayer(world: World, x: number, y: number): Entity {
   world.addComponent(entity, new Transform(x, y, 0));
   world.addComponent(entity, new Velocity(0, -1500)); // Initial jump velocity
   world.addComponent(entity, new CircleCollider(20, 1.0, 0.1));
-  world.addComponent(entity, new Renderable('#ffbf00ff', 10)); // Yellow, high layer
+  world.addComponent(entity, new Renderable('#ffbf00ff', 10)); // Yellow, high layer (fallback)
+  world.addComponent(entity, new Sprite('placeholder', 'player', 40, 40, 10)); // Sprite rendering
   world.addComponent(entity, new PlayerController(3000, 1500, 1200, 800, false));
   world.addComponent(entity, new CameraTarget());
 

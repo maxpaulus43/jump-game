@@ -1,6 +1,7 @@
 import type { RenderContext } from '../../types/index.js';
-import type { Renderer } from "../../types/renderer.js"
-import type { Sprite } from "../../types/sprite.js"
+import type { Renderer } from "../../types/renderer.js";
+import { Sprite } from '../../ecs/components/Sprite.js';
+import { SpriteSheetManager } from '../SpriteSheetManager.js';
 
 /**
  * Renderer class handles all Canvas API interactions
@@ -30,8 +31,58 @@ export class HTMLCanvasRenderer implements Renderer {
     window.addEventListener('resize', () => this.resize());
   }
 
-  drawSprite(_sprite: Sprite, _x: number, _y: number, _width: number, _height: number): void {
-    throw new Error('Method not implemented.');
+  /**
+   * Draw a sprite from a sprite sheet.
+   * 
+   * Renders a sprite at the specified position with optional scaling.
+   * Uses the SpriteSheetManager to look up the sprite frame data.
+   * 
+   * @param sprite - Sprite component with sheet ID and frame name
+   * @param x - X position to draw (center)
+   * @param y - Y position to draw (center)
+   * @param width - Width to draw (if undefined, uses sprite's width or frame's width)
+   * @param height - Height to draw (if undefined, uses sprite's height or frame's height)
+   * 
+   * @example
+   * ```typescript
+   * const sprite = new Sprite('placeholder', 'player', 32, 32);
+   * renderer.drawSprite(sprite, 100, 100, 32, 32);
+   * ```
+   */
+  drawSprite(sprite: Sprite, x: number, y: number, width: number, height: number): void {
+    const spriteManager = SpriteSheetManager.getInstance();
+    const spriteRef = sprite.getSpriteReference();
+    const frameData = spriteManager.getFrame(spriteRef);
+
+    if (!frameData) {
+      // Sprite not found - fail silently or log warning
+      // This allows fallback to Renderable component
+      return;
+    }
+
+    const { sheet, frame } = frameData;
+
+    // Determine final dimensions
+    const finalWidth = width ?? sprite.width ?? frame.width;
+    const finalHeight = height ?? sprite.height ?? frame.height;
+
+    // Draw sprite centered at (x, y)
+    const drawX = x - finalWidth / 2;
+    const drawY = y - finalHeight / 2;
+
+    // Use ctx.drawImage with 9 parameters for precise control
+    // drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh)
+    this.ctx.drawImage(
+      sheet.image,           // Source image
+      frame.x,               // Source X
+      frame.y,               // Source Y
+      frame.width,           // Source width
+      frame.height,          // Source height
+      drawX,                 // Destination X
+      drawY,                 // Destination Y
+      finalWidth,            // Destination width
+      finalHeight            // Destination height
+    );
   }
 
   /**

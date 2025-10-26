@@ -13,3 +13,4 @@ export * from './Renderable.js';
 export * from './PlayerController.js';
 export * from './Platform.js';
 export * from './CameraTarget.js';
+export * from './Sprite.js';
