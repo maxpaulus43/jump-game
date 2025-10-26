@@ -1,5 +1,20 @@
 import type { SpriteSheetConfig } from '../types/sprite.js';
 
+export function createSpriteSheetConfig(): SpriteSheetConfig {
+  return {
+    id: 'playerSprite',
+    imagePath: 'assets/sprite_sheet.png',
+    frames: {
+      'player': {
+        x: 64,
+        y: 0,
+        width: 64,
+        height: 64,
+      },
+    },
+  };
+}
+
 /**
  * Creates a placeholder sprite sheet for testing sprite rendering.
  * 
@@ -24,7 +39,7 @@ export function createPlaceholderSpriteSheet(): SpriteSheetConfig {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
-  
+
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     throw new Error('Failed to get 2D context for placeholder sprite sheet');
@@ -39,7 +54,7 @@ export function createPlaceholderSpriteSheet(): SpriteSheetConfig {
   // Draw player sprite (yellow square)
   ctx.fillStyle = '#ffeb3b'; // Yellow
   ctx.fillRect(0, 0, spriteSize, spriteSize);
-  
+
   // Add a simple face to make it recognizable as player
   ctx.fillStyle = '#000000';
   // Eyes
@@ -55,7 +70,7 @@ export function createPlaceholderSpriteSheet(): SpriteSheetConfig {
   // Draw platform sprite (blue square)
   ctx.fillStyle = '#2196f3'; // Blue
   ctx.fillRect(64, 0, spriteSize, spriteSize);
-  
+
   // Add grid pattern to platform
   ctx.strokeStyle = '#1565c0';
   ctx.lineWidth = 2;
@@ -64,7 +79,7 @@ export function createPlaceholderSpriteSheet(): SpriteSheetConfig {
     ctx.moveTo(64 + i, 0);
     ctx.lineTo(64 + i, spriteSize);
     ctx.stroke();
-    
+
     ctx.beginPath();
     ctx.moveTo(64, i);
     ctx.lineTo(64 + spriteSize, i);
@@ -74,7 +89,7 @@ export function createPlaceholderSpriteSheet(): SpriteSheetConfig {
   // Draw enemy sprite (red square)
   ctx.fillStyle = '#f44336'; // Red
   ctx.fillRect(128, 0, spriteSize, spriteSize);
-  
+
   // Add menacing eyes to enemy
   ctx.fillStyle = '#000000';
   // Angry eyes

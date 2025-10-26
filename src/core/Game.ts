@@ -22,7 +22,7 @@ import { CameraFollowSystem } from '../ecs/systems/CameraFollowSystem.js';
 import { PlatformSpawnSystem } from '../ecs/systems/PlatformSpawnSystem.js';
 import { RenderSystem } from '../ecs/systems/RenderSystem.js';
 import { SpriteSheetManager } from '../managers/SpriteSheetManager.js';
-import { createPlaceholderSpriteSheet } from '../utils/PlaceholderSpriteSheet.js';
+import { createPlaceholderSpriteSheet, createSpriteSheetConfig } from '../utils/PlaceholderSpriteSheet.js';
 
 /**
  * Game class orchestrates all game systems
@@ -103,10 +103,22 @@ export class Game {
   private async initialize(): Promise<void> {
     // Initialize sprite system
     const spriteManager = SpriteSheetManager.getInstance();
-    const placeholderConfig = createPlaceholderSpriteSheet();
-    
+
+    const spriteSheetConfig = {
+      id: 'main',
+      imagePath: 'assets/sprite_sheet.png',
+      frames: {
+        'player': {
+          x: 64,
+          y: 0,
+          width: 64,
+          height: 64,
+        },
+      },
+    };
+
     try {
-      await spriteManager.loadSpriteSheet(placeholderConfig);
+      await spriteManager.loadSpriteSheet(spriteSheetConfig);
       console.log('Sprite system initialized');
     } catch (error) {
       console.error('Failed to load sprite sheets:', error);
