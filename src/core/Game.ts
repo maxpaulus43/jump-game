@@ -24,7 +24,6 @@ import { PlayerAnimationSystem } from '../ecs/systems/PlayerAnimationSystem.js';
 import { AnimationSystem } from '../ecs/systems/AnimationSystem.js';
 import { RenderSystem } from '../ecs/systems/RenderSystem.js';
 import { SpriteSheetManager } from '../managers/SpriteSheetManager.js';
-import { createPlaceholderSpriteSheet, createSpriteSheetConfig } from '../utils/PlaceholderSpriteSheet.js';
 
 /**
  * Game class orchestrates all game systems
@@ -108,10 +107,10 @@ export class Game {
 
     const spriteSheetConfig = {
       id: 'main',
-      imagePath: 'assets/sprite_sheet.png',
+      imagePath: 'assets/main_spritesheet.png',
       frames: {
         'player': {
-          x: 64,
+          x: Math.random() < 0.5 ? 0 : 64,
           y: 0,
           width: 64,
           height: 64,
@@ -121,25 +120,22 @@ export class Game {
 
     // Player animation sprite sheet (64x64 frames)
     // Expected layout: idle_0, idle_1, idle_2, idle_3 (row 0), jump_0, jump_1 (row 1)
-    const idleFrames: Record<string, any> = {};
-    for (let i = 0; i < 13; i++) {
-      idleFrames[`idle_${i}`] = { x: i * 32, y: 0, width: 32, height: 32 }
-    }
-    console.log(idleFrames);
-    const playerAnimationConfig = {
-      id: 'player_animations',
-      imagePath: 'assets/adventurer_sprite_sheet.png',
-      frames: {
-        ...idleFrames,
-        // Jump animation frames (2 frames in second row)
-        'jump_0': { x: 0, y: 32, width: 32, height: 32 },
-        'jump_1': { x: 32, y: 32, width: 32, height: 32 },
-      },
-    };
+    // const idleFrames: Record<string, any> = {};
+    // for (let i = 0; i < 13; i++) {
+    //   idleFrames[`idle_${i}`] = { x: i * 32, y: 0, width: 32, height: 32 }
+    // }
+    // console.log(idleFrames);
+    // const playerAnimationConfig = {
+    //   id: 'main',
+    //   imagePath: 'assets/witches_spritesheet.png',
+    //   frames: {
+    //     'idle_0': { x: 0, y: 0, width: 64, height: 64 },
+    //   },
+    // };
 
     try {
       await spriteManager.loadSpriteSheet(spriteSheetConfig);
-      await spriteManager.loadSpriteSheet(playerAnimationConfig);
+      // await spriteManager.loadSpriteSheet(playerAnimationConfig);
       console.log('Sprite system initialized');
     } catch (error) {
       console.error('Failed to load sprite sheets:', error);

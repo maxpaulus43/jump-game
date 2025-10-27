@@ -6,7 +6,9 @@ import {
   Renderable,
   PlayerController,
   CameraTarget,
-  AnimatedSprite
+  AnimatedSprite,
+  Sprite,
+  RectCollider
 } from '../components/index.js';
 import { createAnimation, createFrameSequence } from '../../utils/AnimationBuilder.js';
 import { AnimationPlaybackMode } from '../../types/sprite.js';
@@ -34,35 +36,35 @@ import { AnimationPlaybackMode } from '../../types/sprite.js';
 export function createPlayer(world: World, x: number, y: number): Entity {
   const entity = world.createEntity();
 
-  // Define player animations
-  // Note: Frames will be loaded from 'player_animations' sprite sheet (64x64 per frame)
-  // Frame names: idle_0, idle_1, idle_2 for idle; jump_0, jump_1 for jump
-  const idleFrames = createFrameSequence(
-    'player_animations',
-    ['idle_0', 'idle_1', 'idle_2', 'idle_3'],
-    0.15 // 150ms per frame (~6.67 fps)
-  );
-  
-  const jumpFrames = createFrameSequence(
-    'player_animations',
-    ['jump_0', 'jump_1'],
-    0.1 // 100ms per frame (10 fps)
-  );
+  // // Define player animations
+  // // Note: Frames will be loaded from 'player_animations' sprite sheet (64x64 per frame)
+  // // Frame names: idle_0, idle_1, idle_2 for idle; jump_0, jump_1 for jump
+  // const idleFrames = createFrameSequence(
+  //   'player_animations',
+  //   ['idle_0', 'idle_1', 'idle_2', 'idle_3'],
+  //   0.15 // 150ms per frame (~6.67 fps)
+  // );
 
-  const animConfig = {
-    defaultAnimation: 'idle',
-    animations: {
-      'idle': createAnimation('idle', idleFrames, AnimationPlaybackMode.Loop),
-      'jump': createAnimation('jump', jumpFrames, AnimationPlaybackMode.Once)
-    }
-  };
+  // const jumpFrames = createFrameSequence(
+  //   'player_animations',
+  //   ['jump_0', 'jump_1'],
+  //   0.1 // 100ms per frame (10 fps)
+  // );
+
+  // const animConfig = {
+  //   defaultAnimation: 'idle',
+  //   animations: {
+  //     'idle': createAnimation('idle', idleFrames, AnimationPlaybackMode.Loop),
+  //     'jump': createAnimation('jump', jumpFrames, AnimationPlaybackMode.Once)
+  //   }
+  // };
 
   // Add all player components
   world.addComponent(entity, new Transform(x, y, 0));
   world.addComponent(entity, new Velocity(0, -1500)); // Initial jump velocity
   world.addComponent(entity, new CircleCollider(20, 1.0, 0.1));
   world.addComponent(entity, new Renderable('#ffbf00ff', 10)); // Yellow, high layer (fallback)
-  world.addComponent(entity, new AnimatedSprite(animConfig, 10)); // Animated sprite rendering
+  world.addComponent(entity, new Sprite('main', 'player', 128, 128));
   world.addComponent(entity, new PlayerController(3000, 1500, 1200, 800, false));
   world.addComponent(entity, new CameraTarget());
 

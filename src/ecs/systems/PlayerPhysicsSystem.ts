@@ -26,7 +26,7 @@ export class PlayerPhysicsSystem extends System {
         velocity.y += player.gravity * dt;
       } else {
         // jump when grounded. player is always jumping.
-        // velocity.y = -player.jumpVelocity;
+        velocity.y = -player.jumpVelocity;
       }
     }
   }
