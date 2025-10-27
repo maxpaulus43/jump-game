@@ -6,12 +6,8 @@ import {
   Renderable,
   PlayerController,
   CameraTarget,
-  AnimatedSprite,
   Sprite,
-  RectCollider
 } from '../components/index.js';
-import { createAnimation, createFrameSequence } from '../../utils/AnimationBuilder.js';
-import { AnimationPlaybackMode } from '../../types/sprite.js';
 
 /**
  * Create a player entity with all required components
