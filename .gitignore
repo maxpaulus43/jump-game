@@ -8,3 +8,4 @@ dist/
 .amplify-hosting/
 amplify_outputs.json
 .amplifyrc
+.DS_Store

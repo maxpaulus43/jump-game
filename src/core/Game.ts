@@ -107,7 +107,7 @@ export class Game {
 
     const spriteSheetConfig = {
       id: 'main',
-      imagePath: 'assets/main_spritesheet.png',
+      imagePath: '/assets/main_spritesheet.png',
       frames: {
         'player': {
           x: Math.random() < 0.5 ? 0 : 64,
